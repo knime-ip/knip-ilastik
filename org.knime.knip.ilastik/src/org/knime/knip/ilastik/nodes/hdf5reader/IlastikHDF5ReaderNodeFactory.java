@@ -81,6 +81,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
@@ -457,6 +458,11 @@ public class IlastikHDF5ReaderNodeFactory<T extends NativeType<T> & RealType<T>>
                             nativeType = (T)new UnsignedIntType();
                             break;
                         }
+
+                        if (elementSize == 8) {
+                            nativeType = (T)new LongType();
+                            break;
+                        }
                     case FLOAT:
                         if (elementSize == 4) {
                             nativeType = (T)new FloatType();
@@ -491,6 +497,10 @@ public class IlastikHDF5ReaderNodeFactory<T extends NativeType<T> & RealType<T>>
 
                         if (elementSize == 4) {
                             return reader.int32().readMDArray(elementPath);
+                        }
+
+                        if (elementSize == 8) {
+                            return reader.int64().readMDArray(elementPath);
                         }
                     case FLOAT:
                         if (elementSize == 4) {
