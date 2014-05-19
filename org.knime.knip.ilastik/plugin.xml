@@ -10,7 +10,7 @@
       </node>
       <node
             expert-flag="false"
-            factory-class="org.knime.knip.ilastik.nodes.IlastikHiliteBridgeNodeFactory"
+            factory-class="org.knime.knip.ilastik.nodes.hilitebridge.IlastikHiliteBridgeNodeFactory"
             id="org.knime.knip.ilastik.nodes.IlastikHiliteBridgeNodeFactory">
       </node>
    </extension>
