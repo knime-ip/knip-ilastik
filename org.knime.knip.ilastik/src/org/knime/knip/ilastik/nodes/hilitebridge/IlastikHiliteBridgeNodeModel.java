@@ -151,38 +151,6 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
         m_positionAccess = getPositionAccess(inData);
 
-        //        final HiLiteHandler handler = getInHiLiteHandler(0);
-        //
-        //        final IlastikHiliteServer ilastikServer = IlastikHiliteServer.getInstance();
-        //        m_ilastikListener = new IlastikServerHiliteListener() {
-        //
-        //            @Override
-        //            public void keyUnhilited(final String key) {
-        //                handler.fireUnHiLiteEvent(new RowKey(key));
-        //            }
-        //
-        //            @Override
-        //            public void keyHilited(final String key) {
-        //                handler.fireHiLiteEvent(new RowKey(key));
-        //            }
-        //
-        //            @Override
-        //            public void clearHilites() {
-        //                handler.fireClearHiLiteEvent();
-        //            }
-        //        };
-        //
-        //        ilastikServer.registerListener(m_ilastikListener);
-        //
-        //        while (true) {
-        //            try {
-        //                exec.checkCanceled();
-        //            } catch (Exception e) {
-        //                ilastikServer.unregisterListener(m_ilastikListener);
-        //                throw new RuntimeException(e);
-        //            }
-        //        }
-
         return null;
     }
 
