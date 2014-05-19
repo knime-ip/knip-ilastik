@@ -151,7 +151,7 @@ public class IlastikHiliteBridgeNodeView extends NodeView<IlastikHiliteBridgeNod
     @Override
     protected void onClose() {
         m_inHiLiteHandler.removeHiLiteListener(m_hiliteListener);
-        m_client.closeConnetion();
+        m_client.closeConnection();
         m_server.shutDown();
     }
 

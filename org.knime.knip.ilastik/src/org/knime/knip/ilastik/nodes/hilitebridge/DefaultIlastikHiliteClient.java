@@ -146,7 +146,7 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
      * {@inheritDoc}
      */
     @Override
-    public void closeConnetion() {
+    public void closeConnection() {
         try {
             if (m_socket != null) {
                 m_socket.close();

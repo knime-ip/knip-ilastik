@@ -62,7 +62,7 @@ public interface IlastikHiliteClient {
     /**
      * close the socket to ilastik
      */
-    void closeConnetion();
+    void closeConnection();
 
     /**
      *
