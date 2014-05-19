@@ -5,7 +5,7 @@
          point="org.knime.workbench.repository.nodes">
       <node
             expert-flag="false"
-            factory-class="org.knime.knip.ilastik.nodes.IlastikHDF5ReaderNodeFactory"
+            factory-class="org.knime.knip.ilastik.nodes.hdf5reader.IlastikHDF5ReaderNodeFactory"
             id="org.knime.knip.ilastik.nodes.IlastikExportReaderNodeFactory">
       </node>
       <node

@@ -48,7 +48,7 @@
  * History
  *   Apr 11, 2012 (hornm): created
  */
-package org.knime.knip.ilastik.nodes;
+package org.knime.knip.ilastik.nodes.hdf5reader;
 
 import java.io.CharArrayReader;
 import java.io.File;
@@ -210,11 +210,9 @@ public class IlastikHDF5ReaderNodeFactory<T extends NativeType<T> & RealType<T>>
                 int imgIdx = 0;
                 int labelingIdx = 0;
                 for (int i = 0; i < exampleMembers.size(); i++) {
-                    //                    final String type =
-                    //                            reader.string().getAttr(IMG_FOLDER_NAME + "/" + exampleDatasetName + "/"
-                    //                                                            + exampleMembers.get(i), TYPE_ATTRIBUTE);
-
-                    final String type = "image";
+                    final String type =
+                            reader.string().getAttr(IMG_FOLDER_NAME + "/" + exampleDatasetName + "/"
+                                                            + exampleMembers.get(i), TYPE_ATTRIBUTE);
 
                     if (DatasetType.IMAGE.isType(type)) {
                         specs[i] =
@@ -386,8 +384,7 @@ public class IlastikHDF5ReaderNodeFactory<T extends NativeType<T> & RealType<T>>
                         }
 
                         // go for some metadata
-                        final String type = "image";
-                        // TODO when format is fixed stringReader.getAttr(elementPath, TYPE_ATTRIBUTE);
+                        final String type = stringReader.getAttr(elementPath, TYPE_ATTRIBUTE);
 
                         // Mapping to map dimensions labels from knime <-> vigra
                         final int[] mappingKNIMEToVigra = createVigraToKnimeMapping(axes);
