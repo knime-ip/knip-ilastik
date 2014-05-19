@@ -1,0 +1,16 @@
+<!DOCTYPE knimeNode PUBLIC "-//UNIKN//DTD KNIME Node 2.0//EN" "http://www.knime.org/Node.dtd">
+<knimeNode icon="icons/threshold.png" type="Visualizer">
+	<name>Ilastik Hilite Bridge</name>
+	<shortDescription>
+		...
+	</shortDescription>
+
+	<fullDescription>
+		<intro>...</intro>
+	</fullDescription>
+
+	<ports>
+	<inPort name="data to be hilited" index="0">All data will be hilited</inPort>
+	</ports>
+
+</knimeNode>
