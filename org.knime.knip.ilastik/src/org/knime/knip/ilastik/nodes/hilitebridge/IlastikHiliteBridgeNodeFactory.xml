@@ -2,11 +2,11 @@
 <knimeNode icon="icons/threshold.png" type="Visualizer">
 	<name>Ilastik Hilite Bridge</name>
 	<shortDescription>
-		...
+		Node to connect KNIME with ilastik
 	</shortDescription>
 
 	<fullDescription>
-		<intro>...</intro>
+		<intro>Enables the user to hilite rows from ilastik</intro>
 	</fullDescription>
 
 	<ports>

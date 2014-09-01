@@ -74,6 +74,7 @@ public class IlastikHDF5ReaderNodeDialog extends DefaultNodeSettingsPane {
         String[] possibleEndings = {".h5", ".hdf5"};
         m_fileChooser = new DialogComponentFileChooser(IlastikHDF5ReaderNodeModel.createFileChooserModel(), "", possibleEndings);
         addDialogComponent(m_fileChooser);
+
         this.closeCurrentGroup();
     }
 }

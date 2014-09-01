@@ -61,7 +61,7 @@ import javax.json.JsonObject;
 
 /**
  *
- * @author Christian Dietz
+ * @author Christian Dietz, University of Konstanz
  */
 public class IlastikHiliteServer {
 
@@ -231,5 +231,13 @@ public class IlastikHiliteServer {
         }
         m_clients.clear();
         return m_isShutDown;
+    }
+
+    /**
+     *
+     * @return
+     */
+    public int getPort() {
+        return m_port;
     }
 }

@@ -50,7 +50,7 @@
 package org.knime.knip.ilastik.nodes.hilitebridge;
 
 /**
- * @author Christian Dietz
+ * @author Christian Dietz, University of Konstanz
  */
 public interface IlastikHiliteClient {
 

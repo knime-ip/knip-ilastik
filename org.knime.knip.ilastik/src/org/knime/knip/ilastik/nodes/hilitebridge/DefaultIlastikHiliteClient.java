@@ -60,8 +60,11 @@ import javax.json.JsonObjectBuilder;
 import javax.json.JsonWriter;
 
 /**
+ * Simple implementation of ilastik hilite client
  *
- * @author Christian Dietz
+ *
+ * @author Christian Dietz, University of Konstanz
+ * @author Andreas Graumann, University of Konstanz
  */
 public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
 
@@ -70,7 +73,6 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
     private int m_clientPort;
 
     /**
-     * TODO: Handle exceptions, nice error message etc pp.
      *
      * @param clientPort
      */
@@ -86,7 +88,6 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
         establishConnection();
         final JsonObjectBuilder obj = Json.createObjectBuilder().add("command", "setviewerposition");
 
-        // TODO: make this more beautiful using a mapping or so..
         obj.add("x", pos[0]);
         obj.add("y", pos[1]);
         obj.add("z", pos[2]);
@@ -97,13 +98,22 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
     }
 
     /**
+     * Writing JsonObject to output stream
+     *
      * @param obj
      */
     private void writeJSONObjectToStream(final JsonObject obj) {
         try {
+            // get stream
             OutputStream outputStream = m_socket.getOutputStream();
+
+            // open writer
             JsonWriter writer = Json.createWriter(outputStream);
+
+            // write to stream
             writer.writeObject(obj);
+
+            // close writer
             writer.close();
         } catch (final IOException e) {
             e.printStackTrace();
@@ -111,11 +121,15 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
     }
 
     /**
+     * Create a new socket if none exists already
+     *
      * @return
      */
     private Socket establishConnection() {
+        // check if socket already exists
         if (m_socket == null || m_socket.isClosed()) {
             try {
+                // create new socket with localhost to client port
                 m_socket = new Socket("localhost", m_clientPort);
             } catch (UnknownHostException e) {
                 throw new RuntimeException(e);
@@ -134,11 +148,19 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
      */
     @Override
     public void sendHandshakeToIlastik(final int serverPort) {
+        // make a connection
         establishConnection();
 
+        // create json object to send
         final JsonObjectBuilder obj = Json.createObjectBuilder().add("command", "handshake");
+
+        // from
         obj.add("name", "knime");
+
+        // which port
         obj.add("port", serverPort);
+
+        // write to stream
         writeJSONObjectToStream(obj.build());
     }
 
@@ -148,6 +170,7 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
     @Override
     public void closeConnection() {
         try {
+            // close connection
             if (m_socket != null) {
                 m_socket.close();
             }
