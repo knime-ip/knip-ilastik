@@ -51,21 +51,27 @@ package org.knime.knip.ilastik.nodes.hilitebridge;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.LinkedList;
 import java.util.Set;
 
+import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
-import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.JToggleButton;
+import javax.swing.table.DefaultTableModel;
 
 import org.knime.core.data.RowKey;
 
 /**
  * Very simple UI to demonstrate Ilastik<->KNIME Interaction
  *
- * @author Christian Dietz
+ * @author Christian Dietz, University of Konstanz
+ * @author Andreas Graumann, University of Konstanz
  */
 public class IlastikHiliteBridgeViewPanel extends JPanel {
 
@@ -74,20 +80,40 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
      */
     private static final long serialVersionUID = 1L;
 
+    /**
+     * RowKey of current hilite
+     */
     private RowKey m_currentHilite;
 
+    /**
+     * position access
+     */
     private PositionAccess m_access;
 
+    /**
+     * List with all selected hilites
+     */
     private LinkedList<RowKey> m_hiliteQueue;
 
+    /**
+     * Client
+     */
     private IlastikHiliteClient m_client;
 
-    private JLabel m_hilitesLeftLabel;
+    /**
+     * current status of server
+     */
+    private JLabel m_serverStatus;
 
-    private JButton m_nextButton;
+    /**
+     * Table with all selected hilites
+     */
+    private JTable m_table = new JTable();
 
-    private JLabel m_currentHiliteLabel;
 
+    /**
+     * Server
+     */
     private IlastikHiliteServer m_server;
 
     /**
@@ -101,6 +127,7 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
         m_client = client;
         m_server = server;
         m_hiliteQueue = new LinkedList<RowKey>();
+
         init();
     }
 
@@ -135,72 +162,98 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
     }
 
     /**
-     *
+     * Initialize panel
      */
     private void init() {
-        m_hilitesLeftLabel = new JLabel();
-        m_currentHiliteLabel = new JLabel();
-        m_nextButton = new JButton();
-
+        m_serverStatus = new JLabel("Server is currently not running");
         final JToggleButton serverToggle = new JToggleButton(m_server.isShutDown() ? "Start Server" : "Stop Server");
 
-        serverToggle.addActionListener(new ActionListener() {
+        // init action listeners
+        initButtonActionListener(serverToggle);
 
+        if (m_access == null) {
+            throw new IllegalArgumentException("Please reconfigure node");
+        }
+
+        m_table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(final MouseEvent e) {
+              if (e.getClickCount() == 1) {
+                JTable target = (JTable)e.getSource();
+                int row = target.getSelectedRow();
+                RowKey selectedObject = (RowKey) target.getModel().getValueAt(row, 0);
+                m_client.firePositionChangedCommand(m_access.getPositionRowKey(m_currentHilite = selectedObject));
+              }
+            }
+          });
+
+        updateStatus();
+
+        // create panel
+        final JPanel serverStatusPanel = new JPanel();
+        serverStatusPanel.setLayout(new BoxLayout(serverStatusPanel, BoxLayout.Y_AXIS));
+        serverStatusPanel.setBorder(BorderFactory.createTitledBorder("Server Status"));
+        serverStatusPanel.setSize(200, 20);
+
+        serverStatusPanel.add(m_serverStatus);
+        serverStatusPanel.add(new JLabel(" "));
+        serverStatusPanel.add(serverToggle);
+        add(serverStatusPanel);
+
+        final JPanel hilitesPanel = new JPanel();
+        hilitesPanel.setLayout(new BoxLayout(hilitesPanel, BoxLayout.Y_AXIS));
+        hilitesPanel.setBorder(BorderFactory.createTitledBorder("Selected hilites"));
+        hilitesPanel.add(new JLabel("Click on a row to center this cell in ilastik:"));
+
+        // Add table with scrollpane
+        JScrollPane pane = new JScrollPane();
+        hilitesPanel.add(pane);
+        pane.setViewportView(m_table);
+
+        add(hilitesPanel);
+
+        updateUI();
+    }
+
+    /**
+     * @param serverToggle
+     */
+    private void initButtonActionListener(final JToggleButton serverToggle) {
+        serverToggle.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(final ActionEvent e) {
                 if (m_server.isShutDown()) {
                     serverToggle.setText("Stop Server");
+                    m_serverStatus.setText("Server is running on port " + m_server.getPort());
                     m_server.startUp();
                     updateUI();
                 } else {
                     serverToggle.setText("Start Server");
+                    m_serverStatus.setText("Server currently not running");
                     m_server.shutDown();
                     updateUI();
                 }
             }
         });
-
-        m_nextButton.addActionListener(new ActionListener() {
-
-            @Override
-            public void actionPerformed(final ActionEvent e) {
-                if (m_hiliteQueue.isEmpty()) {
-                    // do nothing...;-)
-                } else {
-                    m_client.firePositionChangedCommand(m_access.getPositionRowKey(m_currentHilite =
-                            m_hiliteQueue.pop()));
-                    updateStatus();
-                }
-            }
-        });
-
-        updateStatus();
-
-        final JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.add(m_hilitesLeftLabel);
-        panel.add(m_currentHiliteLabel);
-        panel.add(m_nextButton);
-        panel.add(new JLabel("------------------------"));
-        panel.add(serverToggle);
-        add(panel);
-        updateUI();
     }
 
     /**
-     * @return
+     *
      */
     private void updateStatus() {
-        m_hilitesLeftLabel.setText("Number Hilites: [" + m_hiliteQueue.size() + "]");
+        // create table data
+        String[] header = {"Cell"};
+        RowKey[][] data = new RowKey[m_hiliteQueue.size()][2];
 
-        m_currentHiliteLabel.setText("Current Hilite: "
-                + (m_currentHilite == null ? "[Nothing Selected] " : "[" + m_currentHilite.getString() + "]"));
-
-        if (m_hiliteQueue.size() > 0) {
-            m_nextButton.setText("Next: [" + m_hiliteQueue.get(0).getString() + "]");
-        } else {
-            m_nextButton.setText("Next: [Nothing to Hilite]");
+        // fill data
+        for (int i = 0; i < m_hiliteQueue.size(); i++) {
+            data[i][0] = m_hiliteQueue.get(i);
         }
+
+        // create table model
+        DefaultTableModel tableModel = new DefaultTableModel(data, header);
+        m_table.setModel(tableModel);
+
         updateUI();
     }
 }
