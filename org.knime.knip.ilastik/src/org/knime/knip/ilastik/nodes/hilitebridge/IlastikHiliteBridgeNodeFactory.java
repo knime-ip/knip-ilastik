@@ -123,6 +123,11 @@ public class IlastikHiliteBridgeNodeFactory extends NodeFactory<IlastikHiliteBri
                         IlastikHiliteBridgeNodeModel.createTColModel(), "Time Column (optional)", 0, false, true,
                         DoubleValue.class));
 
+                addDialogComponent(new DialogComponentColumnNameSelection(
+                        IlastikHiliteBridgeNodeModel.createOIdColModel(), "Object ID (optional)", 0, false, true,
+                         DoubleValue.class));
+
+
                 createNewGroup("Communication Settings");
                 addDialogComponent(new DialogComponentNumber(IlastikHiliteBridgeNodeModel.createClientPortModel(),
                         "Client Port", 1));

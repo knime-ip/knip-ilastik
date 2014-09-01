@@ -54,6 +54,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Set;
 
 import javax.swing.BorderFactory;
@@ -116,17 +117,23 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
      */
     private IlastikHiliteServer m_server;
 
+    private Map<RowKey, double[]> m_positionMap;
+
+    private Map<RowKey, Double> m_objectIdMap;
+
     /**
      * @param positionAccess
      * @param client
      * @param server
      */
     public IlastikHiliteBridgeViewPanel(final PositionAccess positionAccess, final IlastikHiliteClient client,
-                                        final IlastikHiliteServer server) {
+                                        final IlastikHiliteServer server, final Map<RowKey, double[]> positionMap, final Map<RowKey, Double> objectIdMap) {
         m_access = positionAccess;
         m_client = client;
         m_server = server;
         m_hiliteQueue = new LinkedList<RowKey>();
+        m_positionMap = positionMap;
+        m_objectIdMap = objectIdMap;
 
         init();
     }
@@ -181,8 +188,9 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
               if (e.getClickCount() == 1) {
                 JTable target = (JTable)e.getSource();
                 int row = target.getSelectedRow();
-                RowKey selectedObject = (RowKey) target.getModel().getValueAt(row, 0);
-                m_client.firePositionChangedCommand(m_access.getPositionRowKey(m_currentHilite = selectedObject));
+                String selectedObject = (String) target.getModel().getValueAt(row, 0);
+                RowKey key = new RowKey(selectedObject);
+                m_client.firePositionChangedCommand(m_access.getPositionRowKey(m_currentHilite = key));
               }
             }
           });
@@ -242,12 +250,18 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
      */
     private void updateStatus() {
         // create table data
-        String[] header = {"Cell"};
-        RowKey[][] data = new RowKey[m_hiliteQueue.size()][2];
+        String[] header = {"Cell", "ObjectID", "X", "Y", "Time"};
+        String[][] data = new String[m_hiliteQueue.size()][6];
 
         // fill data
         for (int i = 0; i < m_hiliteQueue.size(); i++) {
-            data[i][0] = m_hiliteQueue.get(i);
+            data[i][0] = m_hiliteQueue.get(i).getString();
+            data[i][1] = String.valueOf(Math.round(m_objectIdMap.get(m_hiliteQueue.get(i))));
+            double[] pos = m_positionMap.get(m_hiliteQueue.get(i));
+            data[i][2] = String.valueOf(Math.round(pos[0]));
+            data[i][3] = String.valueOf(Math.round(pos[1]));
+            data[i][4] = String.valueOf(Math.round(pos[4]));
+
         }
 
         // create table model

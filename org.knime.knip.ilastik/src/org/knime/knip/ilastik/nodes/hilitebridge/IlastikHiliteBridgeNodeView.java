@@ -144,7 +144,7 @@ public class IlastikHiliteBridgeNodeView extends NodeView<IlastikHiliteBridgeNod
      * initialize GUI
      */
     private void initView() {
-        m_gui = new IlastikHiliteBridgeViewPanel(m_nodeModel.getPositionAccess(), m_client, m_server);
+        m_gui = new IlastikHiliteBridgeViewPanel(m_nodeModel.getPositionAccess(), m_client, m_server, m_nodeModel.getPositionMap(), m_nodeModel.getObjectIdMap());
         setComponent(m_gui);
     }
 

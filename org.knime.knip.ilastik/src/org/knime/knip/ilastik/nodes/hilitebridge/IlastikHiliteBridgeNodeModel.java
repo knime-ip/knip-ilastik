@@ -98,9 +98,16 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
     private SettingsModelString m_tColModel = createTColModel();
 
+    private SettingsModelString m_oIdColModel = createOIdColModel();
+
     private SettingsModelInteger m_clientPortModel = createClientPortModel();
 
     private SettingsModelInteger m_serverPortModel = createServerPortModel();
+
+    // X,Y,Z,C,T mapping
+    final Map<RowKey, double[]> m_positionMap = new HashMap<RowKey, double[]>();
+    final Map<RowKey, Double> m_objectIdMap = new HashMap<RowKey, Double>();
+
 
     /**
      * {@inheritDoc}
@@ -108,6 +115,10 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
     @Override
     protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
         return null;
+    }
+
+    static SettingsModelString createOIdColModel() {
+        return new SettingsModelString("oid_model", "");
     }
 
     static SettingsModelString createTColModel() {
@@ -148,7 +159,6 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
             throws Exception {
-
         m_positionAccess = getPositionAccess(inData);
 
         return null;
@@ -166,15 +176,13 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
         int zCol = resolveIdx(m_zColModel, inData[0].getDataTableSpec());
         int cCol = resolveIdx(m_cColModel, inData[0].getDataTableSpec());
         int tCol = resolveIdx(m_tColModel, inData[0].getDataTableSpec());
+        int oIdCol = resolveIdx(m_oIdColModel, inData[0].getDataTableSpec());
 
         // here we simply read in the data and remember the position data.
 
-        // X,Y,Z,C,T mapping
-        final Map<RowKey, double[]> map = new HashMap<RowKey, double[]>();
-
-        //TODO use array here too
         for (final DataRow row : inData[0]) {
             final double[] pos = new double[5];
+
 
             if (xCol != -1) {
                 pos[0] = ((DoubleValue)row.getCell(xCol)).getDoubleValue();
@@ -196,10 +204,15 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
                 pos[4] = ((DoubleValue)row.getCell(tCol)).getDoubleValue();
             }
 
-            map.put(row.getKey(), pos);
+            if (oIdCol != -1) {
+                Double oId = ((DoubleValue)row.getCell(oIdCol)).getDoubleValue();
+                m_objectIdMap.put(row.getKey(), oId);
+            }
+
+            m_positionMap.put(row.getKey(), pos);
         }
 
-        return new MapPositionAccess(map);
+        return new MapPositionAccess(m_positionMap);
     }
 
    private int resolveIdx(final SettingsModelString model, final DataTableSpec spec) throws InvalidSettingsException {
@@ -230,6 +243,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
         m_xColModel.saveSettingsTo(settings);
         m_yColModel.saveSettingsTo(settings);
         m_zColModel.saveSettingsTo(settings);
+        m_oIdColModel.saveSettingsTo(settings);
         m_serverPortModel.saveSettingsTo(settings);
     }
 
@@ -242,6 +256,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
         m_xColModel.validateSettings(settings);
         m_yColModel.validateSettings(settings);
         m_zColModel.validateSettings(settings);
+        m_oIdColModel.validateSettings(settings);
         m_serverPortModel.validateSettings(settings);
     }
 
@@ -255,6 +270,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
         m_xColModel.loadSettingsFrom(settings);
         m_yColModel.loadSettingsFrom(settings);
         m_zColModel.loadSettingsFrom(settings);
+        m_oIdColModel.loadSettingsFrom(settings);
     }
 
     @Override
@@ -281,6 +297,14 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
      */
     public int getServerPort() {
         return m_serverPortModel.getIntValue();
+    }
+
+    public Map<RowKey, double[]> getPositionMap() {
+        return m_positionMap;
+    }
+
+    public Map<RowKey, Double> getObjectIdMap() {
+       return m_objectIdMap;
     }
 
 }
