@@ -105,7 +105,7 @@ public class IlastikHiliteBridgeNodeView extends NodeView<IlastikHiliteBridgeNod
 
             @Override
             public void unHiLiteAll(final KeyEvent event) {
-                m_gui.clearHilites(event.keys());
+                m_gui.clearAllHilites();
             }
 
             @Override
