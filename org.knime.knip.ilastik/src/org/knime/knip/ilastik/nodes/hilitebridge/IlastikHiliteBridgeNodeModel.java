@@ -131,11 +131,11 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
     }
 
     static SettingsModelInteger createServerPortModel() {
-        return new SettingsModelInteger("server_port", 13371);
+        return new SettingsModelInteger("server_port", 9997);
     }
 
     static SettingsModelInteger createClientPortModel() {
-        return new SettingsModelInteger("client_port", 13370);
+        return new SettingsModelInteger("client_port", 9998);
     }
 
     static SettingsModelBoolean createSettingsModelBoolean() {
@@ -186,9 +186,9 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
             if (zCol != -1) {
                 pos[2] = ((DoubleValue)row.getCell(zCol)).getDoubleValue();
-            }
 
-            if (cCol != -1) {
+
+           }   if (cCol != -1) {
                 pos[3] = ((DoubleValue)row.getCell(cCol)).getDoubleValue();
             }
 
@@ -202,7 +202,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
         return new MapPositionAccess(map);
     }
 
-    private int resolveIdx(final SettingsModelString model, final DataTableSpec spec) throws InvalidSettingsException {
+   private int resolveIdx(final SettingsModelString model, final DataTableSpec spec) throws InvalidSettingsException {
         if (model.getStringValue() == null) {
             return -1;
         }
@@ -259,9 +259,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
     @Override
     protected void reset() {
-        //        if (m_ilastikListener != null) {
-        //            IlastikHiliteServer.getInstance().unregisterListener(m_ilastikListener);
-        //        }
+
     }
 
     /**
