@@ -49,19 +49,13 @@
  */
 package org.knime.knip.ilastik.nodes.hdf5reader;
 
-import java.io.CharArrayReader;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.json.Json;
-import javax.json.stream.JsonParser;
-import javax.json.stream.JsonParser.Event;
-
 import net.imglib2.Cursor;
 import net.imglib2.img.Img;
-import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.labeling.Labeling;
 import net.imglib2.labeling.LabelingType;
 import net.imglib2.labeling.NativeImgLabeling;
@@ -69,11 +63,6 @@ import net.imglib2.meta.Axes;
 import net.imglib2.meta.CalibratedAxis;
 import net.imglib2.meta.CalibratedSpace;
 import net.imglib2.meta.DefaultCalibratedSpace;
-import net.imglib2.meta.DefaultNamed;
-import net.imglib2.meta.DefaultSourced;
-import net.imglib2.meta.ImgPlus;
-import net.imglib2.meta.Named;
-import net.imglib2.meta.Sourced;
 import net.imglib2.meta.axis.DefaultLinearAxis;
 import net.imglib2.meta.axis.LinearAxis;
 import net.imglib2.type.NativeType;
@@ -92,7 +81,6 @@ import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.DataType;
-import org.knime.core.data.RowKey;
 import org.knime.core.data.def.BooleanCell;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.def.DoubleCell;
@@ -109,22 +97,15 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.knip.base.data.img.ImgPlusCell;
-import org.knime.knip.base.data.img.ImgPlusCellFactory;
 import org.knime.knip.base.data.labeling.LabelingCell;
-import org.knime.knip.base.data.labeling.LabelingCellFactory;
-import org.knime.knip.core.data.img.DefaultImageMetadata;
-import org.knime.knip.core.data.img.DefaultImgMetadata;
-import org.knime.knip.core.data.img.DefaultLabelingMetadata;
 
 import ch.systemsx.cisd.base.mdarray.MDAbstractArray;
 import ch.systemsx.cisd.hdf5.HDF5CompoundDataMap;
 import ch.systemsx.cisd.hdf5.HDF5CompoundMemberInformation;
-import ch.systemsx.cisd.hdf5.HDF5DataSetInformation;
 import ch.systemsx.cisd.hdf5.HDF5DataTypeInformation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5CompoundReader;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import ch.systemsx.cisd.hdf5.IHDF5StringReader;
 
 /**
  *
@@ -343,81 +324,81 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
         firstContainer.close();
 
         // read images
-        final LabelingCellFactory labelingFactory = new LabelingCellFactory(exec);
-        final ImgPlusCellFactory imageFactory = new ImgPlusCellFactory(exec);
-
-        final IHDF5StringReader stringReader = reader.string();
-        final List<String> datasets = reader.getGroupMembers(IMG_FOLDER_NAME);
-        for (final String dataset : datasets) {
-
-            final List<DataCell> cells = new ArrayList<DataCell>();
-
-            for (final String element : reader.getGroupMembers(IMG_FOLDER_NAME + "/" + dataset)) {
-                final String elementPath = IMG_FOLDER_NAME + "/" + dataset + "/" + element;
-                final HDF5DataSetInformation info = reader.getDataSetInformation(elementPath);
-
-                final JsonParser jsonParser =
-                        Json.createParser(new CharArrayReader(stringReader.getAttr(elementPath, AXIS_ATTRIBUTE)
-                                .toCharArray()));
-
-                final ArrayList<String> axes = new ArrayList<String>();
-                while (jsonParser.hasNext()) {
-                    final Event next = jsonParser.next();
-                    switch (next) {
-                        case KEY_NAME:
-                            if (jsonParser.getString().equalsIgnoreCase("key")) {
-                                jsonParser.next();
-                                axes.add(jsonParser.getString());
-                            }
-                            break;
-                        default:
-                    }
-                }
-
-                // go for some metadata
-                final String type = stringReader.getAttr(elementPath, TYPE_ATTRIBUTE);
-
-                // Mapping to map dimensions labels from knime <-> vigra
-                final int[] mappingKNIMEToVigra = createIlastikToKnimeMapping(axes);
-                final int[] mappingVigraToKNIME = createKnimeToIlastikMapping(axes);
-
-                // create metadata of img
-                final Sourced outSourced = new DefaultSourced(SOURCE_NAME);
-                final Named outNamed = new DefaultNamed(elementPath);
-                final CalibratedSpace<CalibratedAxis> outCs = resolveCalibratedSpace(axes, mappingKNIMEToVigra);
-
-                // adjust dimensions
-                final long[] outDimensions = resolveDimensions(info.getDimensions(), mappingKNIMEToVigra);
-
-                // type info
-                final HDF5DataTypeInformation typeInformation = info.getTypeInformation();
-                final T imgType = resolveType(typeInformation);
-
-                // Img
-                final Img<T> img = new ArrayImgFactory<T>().create(outDimensions, imgType);
-
-                final MDAbstractArray<? extends Number> resolveMDArray =
-                        resolveMDArray(typeInformation, reader, elementPath);
-
-                // create
-                if (DatasetType.IMAGE.isType(type)) {
-                    fillImg(resolveMDArray, img, mappingVigraToKNIME);
-                    cells.add(imageFactory.createCell(new ImgPlus<T>(img, new DefaultImgMetadata(outCs, outNamed,
-                            outSourced, new DefaultImageMetadata()))));
-
-                } else if (DatasetType.LABELING.isType(type)) {
-                    cells.add(labelingFactory
-                            .createCell(createAndFillLabeling(resolveMDArray, (Img<? extends IntegerType<?>>)img,
-                                                              mappingVigraToKNIME), new DefaultLabelingMetadata(outCs,
-                                                outNamed, outSourced, null)));
-
-                } else {
-                    throw new IllegalArgumentException("this should no happen");
-                }
-            }
-
-            secondContainer.addRowToTable(new DefaultRow(new RowKey(dataset), cells));
-        }
+//        final LabelingCellFactory labelingFactory = new LabelingCellFactory(exec);
+//        final ImgPlusCellFactory imageFactory = new ImgPlusCellFactory(exec);
+//
+//        final IHDF5StringReader stringReader = reader.string();
+//        final List<String> datasets = reader.getGroupMembers(IMG_FOLDER_NAME);
+//        for (final String dataset : datasets) {
+//
+//            final List<DataCell> cells = new ArrayList<DataCell>();
+//
+//            for (final String element : reader.getGroupMembers(IMG_FOLDER_NAME + "/" + dataset)) {
+//                final String elementPath = IMG_FOLDER_NAME + "/" + dataset + "/" + element;
+//                final HDF5DataSetInformation info = reader.getDataSetInformation(elementPath);
+//
+//                final JsonParser jsonParser =
+//                        Json.createParser(new CharArrayReader(stringReader.getAttr(elementPath, AXIS_ATTRIBUTE)
+//                                .toCharArray()));
+//
+//                final ArrayList<String> axes = new ArrayList<String>();
+//                while (jsonParser.hasNext()) {
+//                    final Event next = jsonParser.next();
+//                    switch (next) {
+//                        case KEY_NAME:
+//                            if (jsonParser.getString().equalsIgnoreCase("key")) {
+//                                jsonParser.next();
+//                                axes.add(jsonParser.getString());
+//                            }
+//                            break;
+//                        default:
+//                    }
+//                }
+//
+//                // go for some metadata
+//                final String type = stringReader.getAttr(elementPath, TYPE_ATTRIBUTE);
+//
+//                // Mapping to map dimensions labels from knime <-> vigra
+//                final int[] mappingKNIMEToVigra = createIlastikToKnimeMapping(axes);
+//                final int[] mappingVigraToKNIME = createKnimeToIlastikMapping(axes);
+//
+//                // create metadata of img
+//                final Sourced outSourced = new DefaultSourced(SOURCE_NAME);
+//                final Named outNamed = new DefaultNamed(elementPath);
+//                final CalibratedSpace<CalibratedAxis> outCs = resolveCalibratedSpace(axes, mappingKNIMEToVigra);
+//
+//                // adjust dimensions
+//                final long[] outDimensions = resolveDimensions(info.getDimensions(), mappingKNIMEToVigra);
+//
+//                // type info
+//                final HDF5DataTypeInformation typeInformation = info.getTypeInformation();
+//                final T imgType = resolveType(typeInformation);
+//
+//                // Img
+//                final Img<T> img = new ArrayImgFactory<T>().create(outDimensions, imgType);
+//
+//                final MDAbstractArray<? extends Number> resolveMDArray =
+//                        resolveMDArray(typeInformation, reader, elementPath);
+//
+//                // create
+//                if (DatasetType.IMAGE.isType(type)) {
+//                    fillImg(resolveMDArray, img, mappingVigraToKNIME);
+//                    cells.add(imageFactory.createCell(new ImgPlus<T>(img, new DefaultImgMetadata(outCs, outNamed,
+//                            outSourced, new DefaultImageMetadata()))));
+//
+//                } else if (DatasetType.LABELING.isType(type)) {
+//                    cells.add(labelingFactory
+//                            .createCell(createAndFillLabeling(resolveMDArray, (Img<? extends IntegerType<?>>)img,
+//                                                              mappingVigraToKNIME), new DefaultLabelingMetadata(outCs,
+//                                                outNamed, outSourced, null)));
+//
+//                } else {
+//                    throw new IllegalArgumentException("this should not happen");
+//                }
+//            }
+//
+//            secondContainer.addRowToTable(new DefaultRow(new RowKey(dataset), cells));
+//        }
 
         secondContainer.close();
 
@@ -605,18 +586,6 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
     }
 
     @Override
-    protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec) throws IOException,
-            CanceledExecutionException {
-        // nothing to do here
-    }
-
-    @Override
-    protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec) throws IOException,
-            CanceledExecutionException {
-        // nothing to do here
-    }
-
-    @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
         m_fileChooser.saveSettingsTo(settings);
     }
@@ -633,6 +602,18 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
 
     @Override
     protected void reset() {
-        // Nothing to dod here
+        // Nothing to do here
+    }
+
+    @Override
+    protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec) throws IOException,
+            CanceledExecutionException {
+        // nothing to do here
+    }
+
+    @Override
+    protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec) throws IOException,
+            CanceledExecutionException {
+        // nothing to do here
     }
 }
