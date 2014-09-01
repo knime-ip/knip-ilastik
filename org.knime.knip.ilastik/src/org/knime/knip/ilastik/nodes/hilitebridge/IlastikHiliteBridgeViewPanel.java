@@ -250,7 +250,7 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
      */
     private void updateStatus() {
         // create table data
-        String[] header = {"Cell", "ObjectID", "X", "Y", "Time"};
+        String[] header = {"RowId", "ObjectID", "X", "Y", "Time"};
         String[][] data = new String[m_hiliteQueue.size()][6];
 
         // fill data
