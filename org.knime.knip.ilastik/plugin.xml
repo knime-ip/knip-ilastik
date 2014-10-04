@@ -13,6 +13,11 @@
             factory-class="org.knime.knip.ilastik.nodes.hilitebridge.IlastikHiliteBridgeNodeFactory"
             id="org.knime.knip.ilastik.nodes.IlastikHiliteBridgeNodeFactory">
       </node>
+      <node
+            expert-flag="false"
+            factory-class="org.knime.knip.ilastik.nodes.headless.IlastikHeadlessNodeFactory"
+            id="org.knime.knip.ilastik.nodes.headless.IlastikHeadlessNodeFactory">
+      </node>
    </extension>
    <extension
          point="org.knime.workbench.repository.categories">
