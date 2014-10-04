@@ -97,6 +97,16 @@ public class IlastikHeadlessNodeModel extends NodeModel {
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
             throws Exception {
 
+        // call ilastik from this node
+        ProcessBuilder pB =
+                new ProcessBuilder(m_pathToIlastikInstallationModel.getStringValue(), "--headless", "--project=",
+                        m_pathToIlastikProjectFileModel.getStringValue(), "'/Users/andreasgraumann/tmp/tmp.h5'");
+
+        System.out.println("Start ilastik");
+        Process p = pB.start();
+        p.waitFor();
+        System.out.println("ilastik end");
+
         return null;
     }
 
