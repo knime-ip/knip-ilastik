@@ -84,7 +84,7 @@ public class IlastikHeadlessNodeModel extends NodeModel {
      * @param nrOutDataPorts
      */
     protected IlastikHeadlessNodeModel(final int nrInDataPorts, final int nrOutDataPorts) {
-        super(0, 0);
+        super(nrInDataPorts, nrOutDataPorts);
     }
 
     @Override
@@ -105,7 +105,7 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         System.out.println("Start ilastik");
         Process p = pB.start();
         p.waitFor();
-        System.out.println("ilastik end");
+        System.out.println("End ilastik");
 
         return null;
     }
