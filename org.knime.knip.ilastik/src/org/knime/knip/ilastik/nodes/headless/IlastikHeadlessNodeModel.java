@@ -97,17 +97,49 @@ public class IlastikHeadlessNodeModel extends NodeModel {
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
             throws Exception {
 
-        // call ilastik from this node
-        ProcessBuilder pB =
-                new ProcessBuilder(m_pathToIlastikInstallationModel.getStringValue(), "--headless", "--project=",
-                        m_pathToIlastikProjectFileModel.getStringValue(), "'/Users/andreasgraumann/tmp/tmp.h5'");
+        // copy images to tmp directory
 
-        System.out.println("Start ilastik");
+        // run ilastik and process images
+        runIlastik();
+
+        // copy result back to knip images
+
+
+        // return result images (same spec as input??)
+        return inData;
+    }
+
+    /**
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    private void runIlastik() throws IOException, InterruptedException {
+
+        String macExtension = "";
+
+        // which OS are we working on?
+        String os = System.getProperty("os.name");
+
+        // With Mac OS X we must call the program within the app to be able to add '--headless'
+        if (os.contains("OS")) {
+            macExtension = "/Contents/MacOS/ilastik";
+        }
+
+        // build process with project and images
+        ProcessBuilder pB =
+                new ProcessBuilder(m_pathToIlastikInstallationModel.getStringValue().concat(macExtension),
+                        "--headless",
+                        "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()),
+                        "--output_format=tiff",
+                        "--output_filename_format=/Users/andreasgraumann/tmp/results.tiff",
+                        "/Users/andreasgraumann/tmp/tmp.tif"
+                        );
+
+        // run ilastiks
         Process p = pB.start();
         p.waitFor();
-        System.out.println("End ilastik");
 
-        return null;
+        // nice so far
     }
 
     /**
