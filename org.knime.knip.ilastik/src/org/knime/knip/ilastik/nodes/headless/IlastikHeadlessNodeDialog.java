@@ -58,17 +58,29 @@ import org.knime.core.node.defaultnodesettings.DialogComponentFileChooser;
  *
  * @author Andreas Graumann, University of Konstanz
  */
-@SuppressWarnings("unchecked")
 public class IlastikHeadlessNodeDialog extends DefaultNodeSettingsPane {
-    {
-        // Required fields:
-        //  - Path to ilasitk
-        addDialogComponent(new DialogComponentFileChooser(
-                IlastikHeadlessNodeModel.createPathToIlastikInstallationModel(), "Path to Ilastik Installation", 0, false));
 
-        //  - Path to project file
-        addDialogComponent(new DialogComponentFileChooser(
-                IlastikHeadlessNodeModel.createPathToIlastikProjectFileModel(), "Path to Project File", 0, false));
+    /**
+     * Create a Node Dialog to choose an ilastik installation and a pixel classification project file
+     */
+    public IlastikHeadlessNodeDialog() {
 
+        super();
+
+        // Required Dialog Components:
+
+        //  - Path to ilasitk installation, sh for linux, app for mac and bat for windows installations
+        this.createNewGroup("Path to Ilastik Installation");
+        addDialogComponent(new DialogComponentFileChooser(
+                IlastikHeadlessNodeModel.createPathToIlastikInstallationModel(), "st",
+                ".sh", ".app", ".bat"));
+        this.closeCurrentGroup();
+
+        //  - Path to the ilastik project file (*.ilp) it must contain an ilastik pixel classification workflow
+        //  - Is there a chance to check this??
+        this.createNewGroup("Path to Ilastik Project File");
+        addDialogComponent(new DialogComponentFileChooser(
+                IlastikHeadlessNodeModel.createPathToIlastikProjectFileModel(), "test2", ".ilp"));
+        this.closeCurrentGroup();
     }
 }
