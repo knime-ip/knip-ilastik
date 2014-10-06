@@ -70,8 +70,5 @@ public class IlastikHeadlessNodeDialog extends DefaultNodeSettingsPane {
         addDialogComponent(new DialogComponentFileChooser(
                 IlastikHeadlessNodeModel.createPathToIlastikProjectFileModel(), "Path to Project File", 0, false));
 
-        // Optional fields:
-        //  - output format: image or hdf5
-        //  - Output internal path for hdf5 in case
     }
 }
