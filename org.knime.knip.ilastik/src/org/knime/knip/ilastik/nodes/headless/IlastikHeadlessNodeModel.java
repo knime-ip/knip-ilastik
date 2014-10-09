@@ -62,6 +62,8 @@ import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.knip.base.data.img.ImgPlusValue;
+import org.knime.knip.io.nodes.imgwriter.ImgWriter;
 
 /**
  *
@@ -97,7 +99,32 @@ public class IlastikHeadlessNodeModel extends NodeModel {
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
             throws Exception {
 
+        // create tmp directory
+        String tmpDirPath = System.getProperty("java.io.tmpdir") + "/ilastik" + System.currentTimeMillis() + "/";
+        File tmpDir = new File(tmpDirPath);
+        tmpDir.mkdir();
+
+        List<String> files = new ArrayList<String>();
+
         // copy images to tmp directory
+        final CloseableRowIterator it = inData[0].iterator();
+
+        // iterate over all input images and copy them to the tmp directory
+        while (it.hasNext()) {
+            DataRow next = it.next();
+            final ImgPlusValue<?> img = (ImgPlusValue<?>)next.getCell(0);
+
+            final int[] map = new int[img.getDimensions().length];
+
+            for (int i = 0; i < map.length; i++) {
+                map[i] = i;
+            }
+
+            ImgWriter iW = new ImgWriter();
+            files.add(tmpDirPath+next.getKey().getString()+".tif");
+            iW.writeImage(img.getImgPlus(), tmpDirPath + next.getKey().getString() + ".tif",
+                          "Tagged Image File Format (tif)", "Uncompressed", map);
+        }
 
         // run ilastik and process images
         runIlastik();
