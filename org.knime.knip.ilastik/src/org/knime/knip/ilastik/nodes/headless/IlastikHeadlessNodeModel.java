@@ -51,8 +51,12 @@ package org.knime.knip.ilastik.nodes.headless;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.container.CloseableRowIterator;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
@@ -127,10 +131,12 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         }
 
         // run ilastik and process images
-        runIlastik();
+        runIlastik(tmpDirPath, files);
 
-        // copy result back to knip images
+        // make Output from resulting images
 
+        // delte tmp directory
+        tmpDir.delete();
 
         // return result images (same spec as input??)
         return inData;
@@ -140,27 +146,32 @@ public class IlastikHeadlessNodeModel extends NodeModel {
      * @throws IOException
      * @throws InterruptedException
      */
-    private void runIlastik() throws IOException, InterruptedException {
+    private void runIlastik(final String tmpDirPath, final List<String> files) throws IOException, InterruptedException {
 
         String macExtension = "";
 
         // which OS are we working on?
         String os = System.getProperty("os.name");
 
-        // With Mac OS X we must call the program within the app to be able to add '--headless'
+        // On Mac OS X we must call the program within the app to be able to add arguments
         if (os.contains("OS")) {
             macExtension = "/Contents/MacOS/ilastik";
         }
 
+        // DO NOT TOUCH THIS ORDER!
+        files.add(0, "--output_filename_format=/Users/andreasgraumann/tmp/{nickname}_results.tiff");
+        files.add(0, "--output_format=tiff");
+        files.add(0, "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()));
+        files.add(0, "--headless");
+        files.add(0, m_pathToIlastikInstallationModel.getStringValue().concat(macExtension));
+
         // build process with project and images
-        ProcessBuilder pB =
-                new ProcessBuilder(m_pathToIlastikInstallationModel.getStringValue().concat(macExtension),
-                        "--headless",
-                        "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()),
-                        "--output_format=tiff",
-                        "--output_filename_format=/Users/andreasgraumann/tmp/results.tiff",
-                        "/Users/andreasgraumann/tmp/tmp.tif"
-                        );
+        ProcessBuilder pB = new ProcessBuilder(files);
+//        ProcessBuilder pB =
+//                new ProcessBuilder(m_pathToIlastikInstallationModel.getStringValue().concat(macExtension),
+//                        "--headless", "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()),
+//                        "--output_format=tiff", "--output_filename_format=/Users/andreasgraumann/tmp/results.tiff",
+//                        tmpDirPath+"tmp.tif.tif");
 
         // run ilastiks
         Process p = pB.start();
