@@ -159,11 +159,11 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         }
 
         // DO NOT TOUCH THIS ORDER!
-        files.add(0, "--output_filename_format=/Users/andreasgraumann/tmp/{nickname}_results.tiff");
-        files.add(0, "--output_format=tiff");
-        files.add(0, "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()));
-        files.add(0, "--headless");
-        files.add(0, m_pathToIlastikInstallationModel.getStringValue().concat(macExtension));
+        inFiles.add(0, m_pathToIlastikInstallationModel.getStringValue().concat(macExtension));
+        inFiles.add(1, "--headless");
+        inFiles.add(2, "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()));
+        inFiles.add(3, "--output_format=tif");
+        inFiles.add(4, "--output_filename_format=".concat(tmpDirPath).concat("{nickname}_result"));
 
         // build process with project and images
         ProcessBuilder pB = new ProcessBuilder(files);
