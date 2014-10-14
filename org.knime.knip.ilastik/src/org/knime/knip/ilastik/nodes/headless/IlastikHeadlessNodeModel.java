@@ -51,6 +51,8 @@ package org.knime.knip.ilastik.nodes.headless;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -177,7 +179,26 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         Process p = pB.start();
         p.waitFor();
 
-        // nice so far
+        // copy ilastik output to system.out
+        copy(p.getInputStream(), System.out);
+
+        // 0 indicates successful execution
+        if (p.waitFor() == 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    // stream copy method
+    static void copy(final InputStream in, final OutputStream out) throws IOException {
+        while (true) {
+            int c = in.read();
+            if (c == -1) {
+                break;
+            }
+            out.write((char)c);
+        }
     }
 
     /**
