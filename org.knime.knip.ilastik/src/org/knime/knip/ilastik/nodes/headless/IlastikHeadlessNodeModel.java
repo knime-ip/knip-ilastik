@@ -56,9 +56,16 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.imglib2.meta.ImgPlus;
+
+import org.knime.core.data.DataCell;
+import org.knime.core.data.DataColumnSpec;
+import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.container.CloseableRowIterator;
+import org.knime.core.data.def.DefaultRow;
+import org.knime.core.node.BufferedDataContainer;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
@@ -68,7 +75,10 @@ import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.knip.base.data.img.ImgPlusCell;
+import org.knime.knip.base.data.img.ImgPlusCellFactory;
 import org.knime.knip.base.data.img.ImgPlusValue;
+import org.knime.knip.io.ScifioImgSource;
 import org.knime.knip.io.nodes.imgwriter.ImgWriter;
 
 /**
@@ -117,7 +127,11 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         File tmpDir = new File(tmpDirPath);
         tmpDir.mkdir();
 
+        // list to store all input file names
         List<String> files = new ArrayList<String>();
+
+        // list to store all output file path names
+        List<String> outFiles = new ArrayList<String>();
 
         // copy images to tmp directory
         final CloseableRowIterator it = inData[0].iterator();
@@ -125,16 +139,24 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         // iterate over all input images and copy them to the tmp directory
         while (it.hasNext()) {
             DataRow next = it.next();
+
+            // get next image
             final ImgPlusValue<?> img = (ImgPlusValue<?>)next.getCell(0);
 
-            final int[] map = new int[img.getDimensions().length];
+            // store in-image name in list
+            files.add(tmpDirPath + next.getKey().getString() + ".tif");
 
+            // store out-image name in iterable
+            outFiles.add(tmpDirPath + next.getKey().getString());
+
+            // map for dimensions
+            final int[] map = new int[img.getDimensions().length];
             for (int i = 0; i < map.length; i++) {
                 map[i] = i;
             }
 
+            // Image Writer
             ImgWriter iW = new ImgWriter();
-            files.add(tmpDirPath+next.getKey().getString()+".tif");
             iW.writeImage(img.getImgPlus(), tmpDirPath + next.getKey().getString() + ".tif",
                           "Tagged Image File Format (tif)", "Uncompressed", map);
         }
@@ -142,20 +164,55 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         // run ilastik and process images
         runIlastik(tmpDirPath, files);
 
-        // make Output from resulting images
+        List<ImgPlus<?>> images = readResultImages(exec, outFiles);
 
+        BufferedDataContainer imgContainer = exec.createDataContainer(new DataTableSpec(createImgSpec()));
+
+        int idx = 0;
+        for (ImgPlus img : images) {
+
+            DataCell[] cell = new DataCell[1];
+            cell[0] = new ImgPlusCellFactory(exec).createCell(img);
+            imgContainer.addRowToTable(new DefaultRow("Row " + idx++, cell));
+        }
+        imgContainer.close();
         // delte tmp directory
         tmpDir.delete();
 
         // return result images (same spec as input??)
-        return inData;
+        return new BufferedDataTable[]{imgContainer.getTable()};
+    }
+
+    /**
+     *
+     * Read resulting images every channel is a probability map for one labeling
+     *
+     * @param exec
+     * @param outFiles
+     * @return
+     */
+    private List<ImgPlus<?>> readResultImages(final ExecutionContext exec, final List<String> outFiles) {
+
+        List<ImgPlus<?>> images = new ArrayList<ImgPlus<?>>();
+        final ScifioImgSource imgOpener = new ScifioImgSource();
+        for (String file : outFiles) {
+            try {
+                images.add(imgOpener.getImg(file, 0));
+            } catch (Exception e) {
+                throw new IllegalStateException("Can't read image " + file);
+            }
+        }
+        imgOpener.close();
+
+        return images;
     }
 
     /**
      * @throws IOException
      * @throws InterruptedException
      */
-    private void runIlastik(final String tmpDirPath, final List<String> files) throws IOException, InterruptedException {
+    private boolean runIlastik(final String tmpDirPath, final List<String> inFiles) throws IOException,
+            InterruptedException {
 
         String macExtension = "";
 
@@ -175,16 +232,10 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         inFiles.add(4, "--output_filename_format=".concat(tmpDirPath).concat("{nickname}_result"));
 
         // build process with project and images
-        ProcessBuilder pB = new ProcessBuilder(files);
-//        ProcessBuilder pB =
-//                new ProcessBuilder(m_pathToIlastikInstallationModel.getStringValue().concat(macExtension),
-//                        "--headless", "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()),
-//                        "--output_format=tiff", "--output_filename_format=/Users/andreasgraumann/tmp/results.tiff",
-//                        tmpDirPath+"tmp.tif.tif");
+        ProcessBuilder pB = new ProcessBuilder(inFiles);
 
-        // run ilastiks
+        // run ilastik
         Process p = pB.start();
-        p.waitFor();
 
         // copy ilastik output to system.out
         copy(p.getInputStream(), System.out);
