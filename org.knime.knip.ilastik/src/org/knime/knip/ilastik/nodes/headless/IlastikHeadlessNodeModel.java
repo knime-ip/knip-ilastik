@@ -98,7 +98,14 @@ public class IlastikHeadlessNodeModel extends NodeModel {
     @Override
     protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
 
-        return null;
+        return new DataTableSpec[]{new DataTableSpec(createImgSpec())};
+    }
+
+    /**
+     * @return
+     */
+    private DataColumnSpec createImgSpec() {
+        return new DataColumnSpecCreator("Result Image Image", ImgPlusCell.TYPE).createSpec();
     }
 
     @Override
