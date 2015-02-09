@@ -64,6 +64,7 @@ import org.knime.core.data.def.BooleanCell;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.IntCell;
+import org.knime.core.data.def.LongCell;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.node.BufferedDataContainer;
 import org.knime.core.node.BufferedDataTable;
@@ -164,6 +165,10 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
         final IHDF5Reader reader = HDF5Factory.openForReading(m_fileChooser.getStringValue());
 
         final HDF5CompoundMemberInformation[] dataSetInfo = reader.compound().getDataSetInfo(TABLE_NAME);
+
+        // check if we have raw image patches too
+
+        // create data column spec, +1 because of the labeling column
         final DataColumnSpec[] specs = new DataColumnSpec[dataSetInfo.length];
 
         int i = 0;
@@ -172,8 +177,10 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
             i++;
         }
 
-        return new DataTableSpec(specs);
+        // create labeling column spec
+       // specs[i+1] = new DataColumnSpecCreator("Labeling", LabelingCell.TYPE).createSpec();
 
+        return new DataTableSpec(specs);
     }
 
     /**
@@ -188,7 +195,6 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
     /**
      * {@inheritDoc}
      */
-    @SuppressWarnings("unchecked")
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
             throws Exception {
@@ -222,11 +228,11 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
             for (int j = 0; j < dataSetInfo.length; j++) {
 
                 HDF5CompoundMemberInformation info = dataSetInfo[j];
-                // get cell type
-                final Class<?> cellType = clazzMatcher(info.getType());
+
+                Class<?> cellType = clazzMatcher(info.getType());
 
                 // create data cell;
-                cells[j] = createDataCell(info.getType(), map[i].get(info.getName()));
+                cells[j] = createDataCell(cellType, map[i].get(info.getName()));
             }
             // add row to table
             featureContainer.addRowToTable(new DefaultRow("Row" + i, cells));
@@ -245,24 +251,24 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
      * @param value
      * @return
      */
-    private DataCell createDataCell(final HDF5DataTypeInformation cellType, Object value) {
-        switch (cellType.getDataClass()) {
-            case FLOAT:
-                if (value.getClass().getName().contains("Float")) {
-                    value = ((Float)value).doubleValue();
-                }
-                return new DoubleCell((Double)value);
-            case INTEGER:
-                if (value.getClass().getName().contains("Long")) {
-                    value = ((Long)value).intValue();
-                }
-                return new IntCell((Integer)value);
-            case STRING:
-                return new StringCell((String)value);
-            default:
-                new InvalidSettingsException("Can't match HDF5DataType to KNIME DataType");
+    private DataCell createDataCell(final Class<?> cellType, final Object value) {
+        if (cellType.equals(Byte.class)) {
+            return new IntCell((Byte)value);
+        } else if (cellType.equals(Float.class)) {
+            return new DoubleCell((Float)value);
+        } else if (cellType.equals(Double.class)) {
+            return new DoubleCell((Double)value);
+        } else if (cellType.equals(Short.class)) {
+            return new IntCell((Short)value);
+        } else if (cellType.equals(Integer.class)) {
+            return new IntCell((Integer)value);
+        }else if (cellType.equals(Long.class)) {
+            return new LongCell((Long)value);
+        } else if (cellType.equals(String.class)) {
+            return new StringCell((String)value);
+        } else {
+            throw new IllegalArgumentException("Can't read feature table, unknown type");
         }
-        return null;
     }
 
     /**
@@ -275,9 +281,15 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
             case BITFIELD:
                 return BooleanCell.TYPE;
             case FLOAT:
-                return DoubleCell.TYPE;
+                    return DoubleCell.TYPE;
             case INTEGER:
-                return IntCell.TYPE;
+                if (type.getElementSize() <= 4) {
+                    return IntCell.TYPE;
+                }
+                if (type.getElementSize() == 8) {
+                    return LongCell.TYPE;
+                }
+                new InvalidSettingsException("Can't match HDF5DataType to KNIME DataType");
             case STRING:
                 return StringCell.TYPE;
             default:
@@ -313,6 +325,9 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
                 }
                 if (type.getElementSize() == 4) {
                     return Integer.class;
+                }
+                if (type.getElementSize() == 8) {
+                    return Long.class;
                 }
                 new InvalidSettingsException("Can't match HDF5DataType to KNIME DataType");
             case STRING:
