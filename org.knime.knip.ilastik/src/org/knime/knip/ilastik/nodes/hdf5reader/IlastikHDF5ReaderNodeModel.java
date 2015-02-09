@@ -61,6 +61,7 @@ import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.DataType;
 import org.knime.core.data.def.BooleanCell;
+import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.IntCell;
 import org.knime.core.data.def.StringCell;
@@ -178,31 +179,10 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
     /**
      * Creates data table spec for the complete raw image
      *
-     * @return  Data table spec for complete raw image
+     * @return Data table spec for complete raw image
      */
     private DataTableSpec createRawImageOutputSpec() {
         return new DataTableSpec(new DataColumnSpecCreator(IMAGE_COL_PREFIX, ImgPlusCell.TYPE).createSpec());
-    }
-
-    /**
-     *
-     * @param type
-     * @return
-     */
-    private DataType typeMatcher(final HDF5DataTypeInformation type) {
-        switch (type.getDataClass()) {
-            case BITFIELD:
-                return BooleanCell.TYPE;
-            case FLOAT:
-                return DoubleCell.TYPE;
-            case INTEGER:
-                return IntCell.TYPE;
-            case STRING:
-                return StringCell.TYPE;
-            default:
-                new InvalidSettingsException("Can't match HDF5DataType to KNIME DataType");
-        }
-        return null;
     }
 
     /**
@@ -234,16 +214,114 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
         final HDF5CompoundDataMap[] map = compound.readArray(TABLE_NAME, HDF5CompoundDataMap.class);
 
         // create row
-        for (HDF5CompoundDataMap cMap : map) {
+        for (int i = 0; i < map.length; i++) {
 
-            // create DataCell
-            final DataCell[] cells = new DataCell[cMap.size()];
+            // create array with data cells
+            final DataCell[] cells = new DataCell[map[i].size()];
 
+            for (int j = 0; j < dataSetInfo.length; j++) {
+
+                HDF5CompoundMemberInformation info = dataSetInfo[j];
+                // get cell type
+                final Class<?> cellType = clazzMatcher(info.getType());
+
+                // create data cell;
+                cells[j] = createDataCell(info.getType(), map[i].get(info.getName()));
+            }
+            // add row to table
+            featureContainer.addRowToTable(new DefaultRow("Row" + i, cells));
         }
 
+        // close feature container
+        featureContainer.close();
+        rawImageContainer.close();
+
+        return new BufferedDataTable[]{featureContainer.getTable(), rawImageContainer.getTable()};
+    }
+
+    /**
+     *
+     * @param cellType
+     * @param value
+     * @return
+     */
+    private DataCell createDataCell(final HDF5DataTypeInformation cellType, Object value) {
+        switch (cellType.getDataClass()) {
+            case FLOAT:
+                if (value.getClass().getName().contains("Float")) {
+                    value = ((Float)value).doubleValue();
+                }
+                return new DoubleCell((Double)value);
+            case INTEGER:
+                if (value.getClass().getName().contains("Long")) {
+                    value = ((Long)value).intValue();
+                }
+                return new IntCell((Integer)value);
+            case STRING:
+                return new StringCell((String)value);
+            default:
+                new InvalidSettingsException("Can't match HDF5DataType to KNIME DataType");
+        }
         return null;
     }
 
+    /**
+     *
+     * @param type
+     * @return
+     */
+    private DataType typeMatcher(final HDF5DataTypeInformation type) {
+        switch (type.getDataClass()) {
+            case BITFIELD:
+                return BooleanCell.TYPE;
+            case FLOAT:
+                return DoubleCell.TYPE;
+            case INTEGER:
+                return IntCell.TYPE;
+            case STRING:
+                return StringCell.TYPE;
+            default:
+                new InvalidSettingsException("Can't match HDF5DataType to KNIME DataType");
+        }
+        return null;
+    }
+
+    /**
+     * Resolve class type of hdf5 type
+     *
+     * @param type hdf5 information type
+     * @return class type
+     */
+    private Class<?> clazzMatcher(final HDF5DataTypeInformation type) {
+        switch (type.getDataClass()) {
+            case BITFIELD:
+                return Boolean.class;
+            case FLOAT:
+                if (type.getElementSize() == 4) {
+                    return Float.class;
+                }
+                if (type.getElementSize() == 8) {
+                    return Double.class;
+                }
+                new InvalidSettingsException("Can't match HDF5DataType to KNIME DataType");
+            case INTEGER:
+                if (type.getElementSize() == 1) {
+                    return Byte.class;
+                }
+                if (type.getElementSize() == 2) {
+                    return Short.class;
+                }
+                if (type.getElementSize() == 4) {
+                    return Integer.class;
+                }
+                new InvalidSettingsException("Can't match HDF5DataType to KNIME DataType");
+            case STRING:
+                return String.class;
+            default:
+                new InvalidSettingsException("Can't match HDF5DataType to KNIME DataType");
+        }
+        return null;
+    }
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
