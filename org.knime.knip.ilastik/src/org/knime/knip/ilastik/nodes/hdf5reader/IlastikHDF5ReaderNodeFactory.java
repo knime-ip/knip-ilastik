@@ -59,7 +59,7 @@ import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeView;
 
 /**
- * Reader to read files which were exported from Ilastik to be read by KNIME
+ * Node to read files which were exported from Ilastik to be read by KNIME
  *
  * @author Christian Dietz, University of Konstanz
  * @author Andreas Graumann, University of Konstanz
