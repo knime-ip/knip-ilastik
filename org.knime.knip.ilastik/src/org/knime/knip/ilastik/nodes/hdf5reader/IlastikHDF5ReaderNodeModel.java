@@ -49,11 +49,38 @@
  */
 package org.knime.knip.ilastik.nodes.hdf5reader;
 
+import java.io.CharArrayReader;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
+import javax.json.Json;
+import javax.json.stream.JsonParser;
+import javax.json.stream.JsonParser.Event;
+
+import net.imagej.ImgPlus;
+import net.imagej.Sourced;
+import net.imagej.axis.Axes;
+import net.imagej.axis.CalibratedAxis;
+import net.imagej.axis.DefaultLinearAxis;
+import net.imagej.axis.LinearAxis;
+import net.imagej.space.CalibratedSpace;
+import net.imagej.space.DefaultCalibratedSpace;
+import net.imglib2.Cursor;
+import net.imglib2.img.Img;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.labeling.LabelingType;
+import net.imglib2.labeling.NativeImgLabeling;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.DoubleType;
+import net.imglib2.type.numeric.real.FloatType;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
@@ -77,25 +104,38 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.knip.base.data.img.ImgPlusCell;
+import org.knime.knip.base.data.img.ImgPlusCellFactory;
+import org.knime.knip.base.data.labeling.LabelingCell;
+import org.knime.knip.base.data.labeling.LabelingCellFactory;
+import org.knime.knip.core.data.DefaultNamed;
+import org.knime.knip.core.data.DefaultSourced;
+import org.knime.knip.core.data.img.DefaultImageMetadata;
+import org.knime.knip.core.data.img.DefaultImgMetadata;
+import org.knime.knip.core.data.img.DefaultLabelingMetadata;
+import org.scijava.Named;
 
+import ch.systemsx.cisd.base.mdarray.MDAbstractArray;
 import ch.systemsx.cisd.hdf5.HDF5CompoundDataMap;
 import ch.systemsx.cisd.hdf5.HDF5CompoundMemberInformation;
+import ch.systemsx.cisd.hdf5.HDF5DataSetInformation;
 import ch.systemsx.cisd.hdf5.HDF5DataTypeInformation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5CompoundReader;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import ch.systemsx.cisd.hdf5.IHDF5StringReader;
 
 /**
  *
  * @author Andreas Graumann, University of Konstanz
  * @author Christian Dietz, University of Konstanz
  */
+@SuppressWarnings("deprecation")
 public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> extends NodeModel {
 
     SettingsModelString m_fileChooser = createFileChooserModel();
 
     // Constants for reading
-    final static String[] KNIME_DIMENSION_ORDER = new String[]{"X", "Y", "Channel", "Z", "Time"};
+    final static String[] KNIME_DIMENSION_ORDER = new String[]{"X", "Y", "C", "Z", "Time"};
 
     final static String TYPE_ATTRIBUTE = "type";
 
@@ -113,7 +153,14 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
 
     final static String LABELING_COL_PREFIX = "Labeling";
 
+    final static String LABELING_NAME = "labeling";
+    final static String RAW_PATCH_NAME = "raw";
+
     final static String SOURCE_NAME = "Ilastik";
+
+    boolean rawImagesPatches = false;
+
+    int addColumns = 1;
 
     enum DatasetType {
         IMAGE("image"), LABELING("labeling");
@@ -147,6 +194,8 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
      */
     @Override
     protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
+        rawImagesPatches = false;
+        addColumns = 1;
         if (new File(m_fileChooser.getStringValue()).exists()) {
             return new DataTableSpec[]{createFeatureOutputSpec(), createRawImageOutputSpec()};
         } else {
@@ -161,16 +210,26 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
      */
     private DataTableSpec createFeatureOutputSpec() {
 
+        addColumns = 1;
         // get HDF5 Reader
         final IHDF5Reader reader = HDF5Factory.openForReading(m_fileChooser.getStringValue());
-
+        // get Data set information for column specs
         final HDF5CompoundMemberInformation[] dataSetInfo = reader.compound().getDataSetInfo(TABLE_NAME);
 
-        // check if we have raw image patches too
+        // try finding the whole raw image, when it works we dont have raw image patches
+        try {
+            reader.getDataSetInformation(IMG_FOLDER_NAME + "/raw");
+        } catch (Exception e) {
+            // yes we have raw image patches
+            rawImagesPatches = true;
+            // we need one more column
+            addColumns++;
+        }
 
-        // create data column spec, +1 because of the labeling column
-        final DataColumnSpec[] specs = new DataColumnSpec[dataSetInfo.length];
+        // create data column spec
+        final DataColumnSpec[] specs = new DataColumnSpec[dataSetInfo.length + addColumns];
 
+        // counter for columns
         int i = 0;
         for (final HDF5CompoundMemberInformation memberInfo : dataSetInfo) {
             specs[i] = new DataColumnSpecCreator(memberInfo.getName(), typeMatcher(memberInfo.getType())).createSpec();
@@ -178,7 +237,12 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
         }
 
         // create labeling column spec
-       // specs[i+1] = new DataColumnSpecCreator("Labeling", LabelingCell.TYPE).createSpec();
+        specs[i] = new DataColumnSpecCreator("Labeling", LabelingCell.TYPE).createSpec();
+
+        // create imgplus column spec, if needed
+        if (rawImagesPatches) {
+            specs[i + 1] = new DataColumnSpecCreator("Raw Image Patch", ImgPlusCell.TYPE).createSpec();
+        }
 
         return new DataTableSpec(specs);
     }
@@ -195,6 +259,7 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("deprecation")
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
             throws Exception {
@@ -223,7 +288,7 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
         for (int i = 0; i < map.length; i++) {
 
             // create array with data cells
-            final DataCell[] cells = new DataCell[map[i].size()];
+            final DataCell[] cells = new DataCell[map[i].size() + addColumns];
 
             for (int j = 0; j < dataSetInfo.length; j++) {
 
@@ -234,15 +299,324 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
                 // create data cell;
                 cells[j] = createDataCell(cellType, map[i].get(info.getName()));
             }
+
+            final IHDF5StringReader stringReader = reader.string();
+            final String elementPathLabeling = IMG_FOLDER_NAME + "/" + i + "/" + LABELING_NAME;
+            cells[map[i].size()] = createLabelingCell(exec, reader, elementPathLabeling, stringReader);
+
+            if (rawImagesPatches) {
+                final String elementPathImage = IMG_FOLDER_NAME + "/" + i + "/" + RAW_PATCH_NAME;
+                cells[map[i].size()+1] = createImgPlusCell(exec, reader, elementPathImage, stringReader);
+            }
+
             // add row to table
             featureContainer.addRowToTable(new DefaultRow("Row" + i, cells));
+
         }
 
         // close feature container
         featureContainer.close();
+
+        if (!rawImagesPatches) {
+            final IHDF5StringReader stringReader = reader.string();
+            final String elementRawImagePath = IMG_FOLDER_NAME + "/raw";
+            final DataCell[] cells = new DataCell[1];
+            cells[0] = createImgPlusCell(exec, reader, elementRawImagePath, stringReader);
+            rawImageContainer.addRowToTable(new DefaultRow("RawImage", cells));
+        }
+
         rawImageContainer.close();
 
         return new BufferedDataTable[]{featureContainer.getTable(), rawImageContainer.getTable()};
+    }
+
+    /**
+     *
+     * @param exec
+     * @param reader
+     * @param i
+     * @param stringReader
+     * @return
+     * @throws IOException
+     */
+    private LabelingCell<String> createLabelingCell(final ExecutionContext exec, final IHDF5Reader reader, final String elementPath,
+                                    final IHDF5StringReader stringReader) throws IOException {
+
+        final HDF5DataSetInformation info = reader.getDataSetInformation(elementPath);
+
+        final ArrayList<String> axes = getAxex(stringReader, elementPath);
+
+        // Mapping to map dimensions labels from knime <-> vigra
+        final int[] mappingKNIMEToIlastik = createIlastikToKnimeMapping(axes);
+        final int[] mappingIlastikToKNIME = createKnimeToIlastikMapping(axes);
+
+        // create metadata of img
+        final Sourced outSourced = new DefaultSourced(SOURCE_NAME);
+        final Named outNamed = new DefaultNamed(elementPath);
+        final CalibratedSpace<CalibratedAxis> outCs = resolveCalibratedSpace(axes, mappingKNIMEToIlastik);
+
+        // adjust dimensions
+        final long[] outDimensions = resolveDimensions(info.getDimensions(), mappingKNIMEToIlastik);
+
+        // type info
+        final HDF5DataTypeInformation typeInformation = info.getTypeInformation();
+        final T imgType = resolveType(typeInformation);
+        final Img<T> img = new ArrayImgFactory<T>().create(outDimensions, imgType);
+
+        final MDAbstractArray<? extends Number> resolveMDArray =
+                resolveMDArray(typeInformation, reader, elementPath);
+
+        final LabelingCellFactory labelingFactory = new LabelingCellFactory(exec);
+        return labelingFactory.createCell(createLabeling(mappingIlastikToKNIME, img, resolveMDArray),
+                                           new DefaultLabelingMetadata(outCs, outNamed, outSourced, null));
+    }
+
+    /**
+    *
+    * @param exec
+    * @param reader
+    * @param i
+    * @param stringReader
+    * @return
+    * @throws IOException
+    */
+   private ImgPlusCell createImgPlusCell(final ExecutionContext exec, final IHDF5Reader reader, final String elementPath,
+                                   final IHDF5StringReader stringReader) throws IOException {
+
+       final HDF5DataSetInformation info = reader.getDataSetInformation(elementPath);
+
+       final ArrayList<String> axes = getAxex(stringReader, elementPath);
+
+       // Mapping to map dimensions labels from knime <-> vigra
+       final int[] mappingKNIMEToIlastik = createIlastikToKnimeMapping(axes);
+       final int[] mappingIlastikToKNIME = createKnimeToIlastikMapping(axes);
+
+       // create metadata of img
+       final Sourced outSourced = new DefaultSourced(SOURCE_NAME);
+       final Named outNamed = new DefaultNamed(elementPath);
+       final CalibratedSpace<CalibratedAxis> outCs = resolveCalibratedSpace(axes, mappingKNIMEToIlastik);
+
+       // adjust dimensions
+       final long[] outDimensions = resolveDimensions(info.getDimensions(), mappingKNIMEToIlastik);
+
+       // type info
+       final HDF5DataTypeInformation typeInformation = info.getTypeInformation();
+       final T imgType = resolveType(typeInformation);
+       final Img<T> img = new ArrayImgFactory<T>().create(outDimensions, imgType);
+
+       final MDAbstractArray<? extends Number> resolveMDArray =
+               resolveMDArray(typeInformation, reader, elementPath);
+
+       final ImgPlusCellFactory imageFactory = new ImgPlusCellFactory(exec);
+       fillImg(resolveMDArray, img, mappingIlastikToKNIME);
+       return imageFactory.createCell(new ImgPlus<T>(img, new DefaultImgMetadata(outCs, outNamed,
+                                                                              outSourced, new DefaultImageMetadata())));
+   }
+
+    /**
+     *
+     * @param mdArray
+     * @param img
+     * @param mapping
+     */
+    protected void fillImg(final MDAbstractArray<? extends Number> mdArray, final Img<? extends RealType<?>> img,
+                           final int[] mapping) {
+        final Cursor<? extends RealType<?>> cursor = img.cursor();
+
+        final int[] knimePos = new int[img.numDimensions()];
+        final int[] ilastikPos = new int[img.numDimensions()];
+
+        while (cursor.hasNext()) {
+            cursor.fwd();
+            cursor.localize(knimePos);
+
+            for (int d = 0; d < knimePos.length; d++) {
+                ilastikPos[d] = knimePos[mapping[d]];
+            }
+
+            cursor.get().setReal(((Number)mdArray.getAsObject(ilastikPos)).doubleValue());
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private NativeImgLabeling<String, ?> createLabeling(final int[] mappingIlastikToKNIME, final Img<T> img,
+                                                        final MDAbstractArray<? extends Number> resolveMDArray) {
+        final NativeImgLabeling<String, ?> labeling = new NativeImgLabeling(img);
+
+        final Cursor<LabelingType<String>> cursor = labeling.cursor();
+
+        final int[] knimePos = new int[labeling.numDimensions()];
+        final int[] ilastikPos = new int[labeling.numDimensions()];
+
+        while (cursor.hasNext()) {
+            cursor.fwd();
+            cursor.localize(knimePos);
+
+            for (int d = 0; d < knimePos.length; d++) {
+                ilastikPos[d] = knimePos[mappingIlastikToKNIME[d]];
+            }
+
+            double val = ((Number)resolveMDArray.getAsObject(ilastikPos)).doubleValue();
+            if (val != 0) {
+                cursor.get().setLabel("" + val);
+            }
+        }
+        return labeling;
+    }
+
+    private ArrayList<String> getAxex(final IHDF5StringReader stringReader, final String elementPath) {
+        final JsonParser jsonParser =
+                Json.createParser(new CharArrayReader(stringReader.getAttr(elementPath, AXIS_ATTRIBUTE).toCharArray()));
+
+        final ArrayList<String> axes = new ArrayList<String>();
+        while (jsonParser.hasNext()) {
+            final Event next = jsonParser.next();
+            switch (next) {
+                case KEY_NAME:
+                    if (jsonParser.getString().equalsIgnoreCase("key")) {
+                        jsonParser.next();
+                        axes.add(jsonParser.getString());
+                    }
+                    break;
+                default:
+            }
+        }
+        return axes;
+    }
+
+    private CalibratedSpace<CalibratedAxis> resolveCalibratedSpace(final ArrayList<String> axes, final int[] mapping) {
+
+        final LinearAxis[] outAxes = new LinearAxis[axes.size()];
+
+        int k = 0;
+        for (final String axis : axes) {
+            outAxes[mapping[k++]] = new DefaultLinearAxis(Axes.get(axis), 1.0);
+        }
+
+        return new DefaultCalibratedSpace(outAxes);
+    }
+
+    private MDAbstractArray<? extends Number> resolveMDArray(final HDF5DataTypeInformation typeInfo,
+                                                             final IHDF5Reader reader, final String elementPath) {
+
+        final int elementSize = typeInfo.getElementSize();
+        switch (typeInfo.getRawDataClass()) {
+            case INTEGER:
+                if (elementSize == 1) {
+                    return reader.int64().readMDArray(elementPath);
+                }
+
+                if (elementSize == 2) {
+                    return reader.int16().readMDArray(elementPath);
+                }
+
+                if (elementSize == 4) {
+                    return reader.int32().readMDArray(elementPath);
+                }
+
+                if (elementSize == 8) {
+                    return reader.int64().readMDArray(elementPath);
+                }
+            case FLOAT:
+                if (elementSize == 4) {
+                    return reader.float32().readMDArray(elementPath);
+                }
+
+                if (elementSize == 8) {
+                    return reader.float64().readMDArray(elementPath);
+                }
+            default:
+                throw new IllegalArgumentException(
+                        "We can only handle uint8, uint16, uint32 or float/double images, yet!");
+        }
+
+    }
+
+    private long[] resolveDimensions(final long[] dimensions, final int[] mapping) {
+        final long[] outDims = new long[dimensions.length];
+
+        int k = 0;
+        for (final long d : dimensions) {
+            outDims[mapping[k++]] = d;
+        }
+
+        return outDims;
+    }
+
+    private int[] createIlastikToKnimeMapping(final List<String> axesIlastik) {
+        final int[] map = new int[axesIlastik.size()];
+
+        for (int j = 0; j < map.length; j++) {
+            map[j] = findLabelIndex(axesIlastik.get(j));
+        }
+
+        return map;
+    }
+
+    private int[] createKnimeToIlastikMapping(final List<String> axesIlastik) {
+        final int[] map = new int[axesIlastik.size()];
+
+        for (int j = 0; j < map.length; j++) {
+            map[findLabelIndex(axesIlastik.get(j))] = j;
+        }
+
+        return map;
+    }
+
+    private int findLabelIndex(final String label) {
+        for (int j = 0; j < KNIME_DIMENSION_ORDER.length; j++) {
+            if (label.equalsIgnoreCase(KNIME_DIMENSION_ORDER[j])) {
+                return j;
+            }
+        }
+
+        throw new IllegalArgumentException("Index not found!");
+    }
+
+    @SuppressWarnings("unchecked")
+    private T resolveType(final HDF5DataTypeInformation typeInfo) {
+        T nativeType = null;
+        final int elementSize = typeInfo.getElementSize();
+        switch (typeInfo.getRawDataClass()) {
+            case BITFIELD:
+                nativeType = (T)new BitType();
+                break;
+            case INTEGER:
+                if (elementSize == 1) {
+                    nativeType = (T)new UnsignedByteType();
+                    break;
+                }
+
+                if (elementSize == 2) {
+                    nativeType = (T)new UnsignedShortType();
+                    break;
+                }
+
+                if (elementSize == 4) {
+                    nativeType = (T)new UnsignedIntType();
+                    break;
+                }
+
+                if (elementSize == 8) {
+                    nativeType = (T)new LongType();
+                    break;
+                }
+            case FLOAT:
+                if (elementSize == 4) {
+                    nativeType = (T)new FloatType();
+                    break;
+                }
+
+                if (elementSize == 8) {
+                    nativeType = (T)new DoubleType();
+                    break;
+                }
+            default:
+                throw new IllegalArgumentException(
+                        "We can only handle uint8, uint16, uint32 or float/double images, yet!");
+        }
+
+        return nativeType;
     }
 
     /**
@@ -262,7 +636,7 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
             return new IntCell((Short)value);
         } else if (cellType.equals(Integer.class)) {
             return new IntCell((Integer)value);
-        }else if (cellType.equals(Long.class)) {
+        } else if (cellType.equals(Long.class)) {
             return new LongCell((Long)value);
         } else if (cellType.equals(String.class)) {
             return new StringCell((String)value);
@@ -281,7 +655,7 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
             case BITFIELD:
                 return BooleanCell.TYPE;
             case FLOAT:
-                    return DoubleCell.TYPE;
+                return DoubleCell.TYPE;
             case INTEGER:
                 if (type.getElementSize() <= 4) {
                     return IntCell.TYPE;
