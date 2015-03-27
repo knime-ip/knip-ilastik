@@ -9,13 +9,16 @@
 
 	<fullDescription>
 		<intro>
+		Node to import HDF5 Data exported by Ilastik to use the KNIME Ilastik HiLite Bridge.
 		</intro>
 	</fullDescription>
 
 	<ports>
-		<outPort index="0" name="DataRow">Feature Table
+		<outPort index="0" name="Feature Table and Image Patches">Feature Table and Image Patches
 		</outPort>
-		<outPort index="1" name="Reference Images">References Images
+		<outPort index="1" name="Tracking Data">Tracking Data
+		</outPort>
+		<outPort index="2" name="Reference Image">Reference Image
 		</outPort>
 	</ports>
 </knimeNode>

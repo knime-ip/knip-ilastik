@@ -17,6 +17,7 @@ Require-Bundle: org.knime.base;bundle-version="[2.9.0,3.0.0)",
  imagej-common;bundle-version="0.12.1",
  imglib2;bundle-version="2.2.0",
  scijava-common;bundle-version="2.37.0",
- imglib2-roi;bundle-version="0.2.120150118"
+ imglib2-roi;bundle-version="0.2.1"
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Bundle-ActivationPolicy: lazy
+Import-Package: net.imagej.axis

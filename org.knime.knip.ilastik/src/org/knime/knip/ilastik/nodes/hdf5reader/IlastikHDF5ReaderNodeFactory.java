@@ -73,7 +73,7 @@ public class IlastikHDF5ReaderNodeFactory<T extends NativeType<T> & RealType<T>>
      */
     @Override
     public NodeModel createNodeModel() {
-        return new IlastikHDF5ReaderNodeModel<T>(0, 2);
+        return new IlastikHDF5ReaderNodeModel<T>(0, 3);
     }
 
     /**
