@@ -53,6 +53,7 @@ import java.io.CharArrayReader;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.json.Json;
@@ -121,45 +122,90 @@ import ch.systemsx.cisd.hdf5.IHDF5StringReader;
 
 /**
  *
+ * Simple hdf5 reader for ilastik hdf5 files
+ *
  * @author Andreas Graumann, University of Konstanz
  * @author Christian Dietz, University of Konstanz
+ * @param <T>
  */
 @SuppressWarnings("deprecation")
 public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> extends NodeModel {
 
     SettingsModelString m_fileChooser = createFileChooserModel();
 
-
     // Constants for reading
-    final static String[] KNIME_DIMENSION_ORDER = new String[]{"X", "Y", "C", "Z", "Time"};
+    final static String[] KNIME_DIMENSION_ORDER = new String[]{"X", "Y", "Z", "C", "Time"};
 
+    /**
+     *
+     */
     final static String TYPE_ATTRIBUTE = "type";
 
+    /**
+     *
+     */
     final static String AXIS_ATTRIBUTE = "axistags";
 
+    /**
+     *
+     */
     final static String RAW_IMAGE_PATH = "images/raw";
 
+    /**
+     *
+     */
     final static String IMG_FOLDER_NAME = "images";
 
+    /**
+     *
+     */
     final static String TABLE_NAME = "table";
 
+    /**
+     *
+     */
     final static String TRACKING_NAME = "divisions";
 
     // Constants for output
 
+    /**
+     *
+     */
     final static String IMAGE_COL_PREFIX = "Raw Image";
 
+    /**
+     *
+     */
     final static String LABELING_COL_PREFIX = "Labeling";
 
+    /**
+     *
+     */
     final static String LABELING_NAME = "labeling";
+
+    /**
+     *
+     */
     final static String RAW_PATCH_NAME = "raw";
 
+    /**
+     *
+     */
     final static String SOURCE_NAME = "Ilastik";
 
+    /**
+     * do we have raw image rois
+     */
     boolean rawImagesPatches = false;
 
+    /**
+     * tracking data set included?
+     */
     boolean containsTrackingData = false;
 
+    /**
+     * columns to add to feature table, because of labeling and raw image roi
+     */
     int addColumnsToFeatureTable = 1;
 
     enum DatasetType {
@@ -294,7 +340,6 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
     /**
      * {@inheritDoc}
      */
-    @SuppressWarnings("deprecation")
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
             throws Exception {
@@ -342,10 +387,12 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
 
     /**
      * @param exec
+     *              Execution context
      * @param trackingContainer
+     *              Container to fill with tracking data
      * @param reader
+     *              HdF5 Reader
      * @param compound
-     * @param dataSetInfo
      * @throws IOException
      */
     private void fillTrackingDataTable(final ExecutionContext exec, final BufferedDataContainer trackingContainer,
@@ -434,24 +481,15 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
     * @return
     * @throws IOException
     */
-   private ImgPlusCell<T> createImgPlusCell(final ExecutionContext exec, final IHDF5Reader reader, final String elementPath,
+   @SuppressWarnings("unchecked")
+private ImgPlusCell<T> createImgPlusCell(final ExecutionContext exec, final IHDF5Reader reader, final String elementPath,
                                    final IHDF5StringReader stringReader, final boolean isLabeling) throws IOException {
 
        final HDF5DataSetInformation info = reader.getDataSetInformation(elementPath);
 
        final ArrayList<String> axes = getAxex(stringReader, elementPath);
 
-       // Mapping to map dimensions labels from knime <-> vigra
-       final int[] mappingKNIMEToIlastik = createIlastikToKnimeMapping(axes);
-       final int[] mappingIlastikToKNIME = createKnimeToIlastikMapping(axes);
-
-       // create metadata of img
-       final Sourced outSourced = new DefaultSourced(SOURCE_NAME);
-       final Named outNamed = new DefaultNamed(elementPath);
-       final CalibratedSpace<CalibratedAxis> outCs = resolveCalibratedSpace(axes, mappingKNIMEToIlastik);
-
-       // adjust dimensions
-       final long[] outDimensions = resolveDimensions(info.getDimensions(), mappingKNIMEToIlastik);
+       final ImgPlusCellFactory imageFactory = new ImgPlusCellFactory(exec);
 
        // type info
        final HDF5DataTypeInformation typeInformation = info.getTypeInformation();
@@ -461,13 +499,37 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
            imgType = (T) new BitType();
        }
 
-       final Img<T> img = new ArrayImgFactory<T>().create(outDimensions, imgType);
+
+
+       final Sourced outSourced = new DefaultSourced(SOURCE_NAME);
+       final Named outNamed = new DefaultNamed(elementPath);
+
+       // just one pixel
+       if (axes.size() == 0) {
+           final long dim[] = new long[]{1};
+           final Img<T> i = new ArrayImgFactory<T>().create(dim, imgType);
+           LinearAxis axe = new  DefaultLinearAxis(Axes.get("X"), 1.0);
+           final CalibratedSpace<CalibratedAxis> cs = new DefaultCalibratedSpace(axe);
+           return imageFactory.createCell(new ImgPlus<T>(i, new DefaultImgMetadata(cs, outNamed,
+                                                                                     outSourced, new DefaultImageMetadata())));
+       }
 
        final MDAbstractArray<? extends Number> resolveMDArray =
                resolveMDArray(typeInformation, reader, elementPath);
 
-       final ImgPlusCellFactory imageFactory = new ImgPlusCellFactory(exec);
-       fillImg(resolveMDArray, img, mappingIlastikToKNIME);
+       // Mapping to map dimensions labels from knime <-> ilastik
+       final int[] mappingIlastikToKnime = createIlastikToKnimeMapping(axes);
+       final int[] mappingKnimeToIlastik = createKnimeToIlastikMapping(axes);
+
+       // create metadata of img
+       final CalibratedSpace<CalibratedAxis> outCs = resolveCalibratedSpace(axes, mappingIlastikToKnime, mappingKnimeToIlastik);
+
+       // adjust dimensions
+       final long[] outDimensions = resolveDimensions(info.getDimensions(), mappingIlastikToKnime, mappingKnimeToIlastik);
+
+       final Img<T> img = new ArrayImgFactory<T>().create(outDimensions, imgType);
+
+       fillImg(resolveMDArray, img, mappingIlastikToKnime, mappingKnimeToIlastik);
        return imageFactory.createCell(new ImgPlus<T>(img, new DefaultImgMetadata(outCs, outNamed,
                                                                               outSourced, new DefaultImageMetadata())));
    }
@@ -479,7 +541,7 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
      * @param mapping
      */
     protected void fillImg(final MDAbstractArray<? extends Number> mdArray, final Img<? extends RealType<?>> img,
-                           final int[] mapping) {
+                           final int[] mapping, final int[] mapping2) {
         final Cursor<? extends RealType<?>> cursor = img.cursor();
 
         final int[] knimePos = new int[img.numDimensions()];
@@ -490,39 +552,21 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
             cursor.localize(knimePos);
 
             for (int d = 0; d < knimePos.length; d++) {
-                ilastikPos[d] = knimePos[mapping[d]];
+                ilastikPos[d] = knimePos[mapping2[mapping[d]]];
             }
 
             cursor.get().setReal(((Number)mdArray.getAsObject(ilastikPos)).doubleValue());
         }
     }
 
-//    @SuppressWarnings({"rawtypes", "unchecked"})
-//    private NativeImgLabeling<String, ?> createBitMask(final int[] mappingIlastikToKNIME, final Img<T> img,
-//                                                        final MDAbstractArray<? extends Number> resolveMDArray) {
-//        final NativeImgLabeling<String, ?> labeling = new NativeImgLabeling(img);
-//
-//        final Cursor<LabelingType<String>> cursor = labeling.cursor();
-//
-//        final int[] knimePos = new int[labeling.numDimensions()];
-//        final int[] ilastikPos = new int[labeling.numDimensions()];
-//
-//        while (cursor.hasNext()) {
-//            cursor.fwd();
-//            cursor.localize(knimePos);
-//
-//            for (int d = 0; d < knimePos.length; d++) {
-//                ilastikPos[d] = knimePos[mappingIlastikToKNIME[d]];
-//            }
-//
-//            double val = ((Number)resolveMDArray.getAsObject(ilastikPos)).doubleValue();
-//            if (val != 0) {
-//                cursor.get().setLabel("" + val);
-//            }
-//        }
-//        return labeling;
-//    }
 
+
+    /**
+     *
+     * @param stringReader
+     * @param elementPath
+     * @return
+     */
     private ArrayList<String> getAxex(final IHDF5StringReader stringReader, final String elementPath) {
         final JsonParser jsonParser =
                 Json.createParser(new CharArrayReader(stringReader.getAttr(elementPath, AXIS_ATTRIBUTE).toCharArray()));
@@ -543,13 +587,19 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
         return axes;
     }
 
-    private CalibratedSpace<CalibratedAxis> resolveCalibratedSpace(final ArrayList<String> axes, final int[] mapping) {
+    /**
+     *
+     * @param axes
+     * @param mapping
+     * @return
+     */
+    private CalibratedSpace<CalibratedAxis> resolveCalibratedSpace(final ArrayList<String> axes, final int[] mapping, final int[] mapping2) {
 
         final LinearAxis[] outAxes = new LinearAxis[axes.size()];
 
         int k = 0;
         for (final String axis : axes) {
-            outAxes[mapping[k++]] = new DefaultLinearAxis(Axes.get(axis), 1.0);
+            outAxes[mapping2[mapping[k++]]] = new DefaultLinearAxis(Axes.get(axis), 1.0);
         }
 
         return new DefaultCalibratedSpace(outAxes);
@@ -591,17 +641,28 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
 
     }
 
-    private long[] resolveDimensions(final long[] dimensions, final int[] mapping) {
+    /**
+     *
+     * @param dimensions
+     * @param mapping
+     * @return
+     */
+    private long[] resolveDimensions(final long[] dimensions, final int[] mapping, final int[] mapping2) {
         final long[] outDims = new long[dimensions.length];
 
         int k = 0;
         for (final long d : dimensions) {
-            outDims[mapping[k++]] = d;
+            outDims[mapping2[mapping[k++]]] = d;
         }
 
         return outDims;
     }
 
+    /**
+     *
+     * @param axesIlastik
+     * @return
+     */
     private int[] createIlastikToKnimeMapping(final List<String> axesIlastik) {
         final int[] map = new int[axesIlastik.size()];
 
@@ -612,16 +673,30 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
         return map;
     }
 
+    /**
+     *
+     * @param axesIlastik
+     * @return
+     */
     private int[] createKnimeToIlastikMapping(final List<String> axesIlastik) {
-        final int[] map = new int[axesIlastik.size()];
+//        final int[] map = new int[axesIlastik.size()];
+        final int[] map = new int[KNIME_DIMENSION_ORDER.length];
+        Arrays.fill(map, -1);
 
-        for (int j = 0; j < map.length; j++) {
-            map[findLabelIndex(axesIlastik.get(j))] = j;
+        for (int j = 0; j < axesIlastik.size(); j++) {
+
+            int index = findLabelIndex(axesIlastik.get(j));
+            map[index] = j;
         }
 
         return map;
     }
 
+    /**
+     *
+     * @param label
+     * @return
+     */
     private int findLabelIndex(final String label) {
         for (int j = 0; j < KNIME_DIMENSION_ORDER.length; j++) {
             if (label.equalsIgnoreCase(KNIME_DIMENSION_ORDER[j])) {
@@ -632,6 +707,11 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
         throw new IllegalArgumentException("Index not found!");
     }
 
+    /**
+     *
+     * @param typeInfo
+     * @return
+     */
     @SuppressWarnings("unchecked")
     private T resolveType(final HDF5DataTypeInformation typeInfo) {
         T nativeType = null;
