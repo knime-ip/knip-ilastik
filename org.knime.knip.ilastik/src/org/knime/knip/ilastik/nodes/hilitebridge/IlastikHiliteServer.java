@@ -57,16 +57,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.json.Json;
+import javax.json.JsonArray;
 import javax.json.JsonObject;
+
+import org.knime.core.data.RowKey;
 
 /**
  *
+ * @author Andreas Graumann, University of Konstanz
  * @author Christian Dietz, University of Konstanz
  */
 public class IlastikHiliteServer {
 
     enum HiliteEvents {
-        HILITE, UNHILITE, CLEARHILITE;
+        hilite, unhilite, clearhilite, toggle;
     }
 
     /**
@@ -77,7 +81,17 @@ public class IlastikHiliteServer {
     /**
      * IDENDTIFIER FOR ROWIDs
      */
-    public final static String ID_NAME = "objectid";
+    public final static String OID_NAME = "objectid";
+
+    /**
+     *
+     */
+    public final static String ILASTIK_ID = "ilastik_id";
+
+    /**
+     *
+     */
+    public final static String TIME_ID = "time_id";
 
     private boolean m_isShutDown = true;
 
@@ -91,10 +105,13 @@ public class IlastikHiliteServer {
 
     private IlastikHiliteClient m_client;
 
-    IlastikHiliteServer(final int portNumber, final IlastikHiliteClient client) {
+    private IlastikHiliteBridgeNodeModel m_nodeModel;
+
+    IlastikHiliteServer(final int portNumber, final IlastikHiliteClient client, final IlastikHiliteBridgeNodeModel model) {
         m_listeners = new ArrayList<IlastikHiliteListenerServer>();
         m_port = portNumber;
         m_client = client;
+        m_nodeModel = model;
     }
 
     /**
@@ -102,6 +119,11 @@ public class IlastikHiliteServer {
      */
     void startUp() {
         if (!m_isShutDown) {
+
+            if (!m_client.isConnected()) {
+                m_client.sendHandshakeToIlastik(m_port);
+            }
+
             return;
         }
 
@@ -121,32 +143,66 @@ public class IlastikHiliteServer {
                             final Socket client = m_server.accept();
                             m_clients.add(client);
 
-                            //TODO Only accept from localhost
-                            //                            if(client.getLocalAddress().equals(m_server.getInetAddress().getLocalHost())){
-                            //
-                            //                            }
-
                             new Thread(new Runnable() {
 
                                 @Override
                                 public void run() {
                                     while (client.isConnected()) {
                                         try {
-                                            JsonObject obj = Json.createReader(client.getInputStream()).readObject();
 
-                                            switch (HiliteEvents.values()[obj.getInt(COMMAND_NAME)]) {
-                                                case HILITE:
-                                                    fireHiLiteEvent(obj.getString(ID_NAME));
-                                                    break;
-                                                case CLEARHILITE:
-                                                    fireClearHiliteEvent();
-                                                    break;
-                                                case UNHILITE:
-                                                    fireUnHiliteEvent(obj.getString(ID_NAME));
-                                                    break;
+                                            JsonObject obj = Json.createReader(client.getInputStream()).readObject();
+                                            // get mode
+                                            String mode = obj.get("mode").toString();
+                                            if (mode.equals("\"clear\"")) {
+                                                fireClearHiliteEvent();
+                                                System.out.println("clear");
+                                                break;
                                             }
+
+
+                                            // get positions to hilite
+                                            JsonObject objwehre = obj.getJsonObject("where");
+
+                                            JsonArray arr = objwehre.getJsonArray("operands");
+
+                                            int time = -1;
+                                            int ilastik_id = -1;
+
+                                            for (int i = 0; i < arr.size(); i++) {
+                                                JsonObject o = arr.getJsonObject(i);
+                                                String s = o.getString("row");
+                                                int val = o.getInt("value");
+                                                if (s.equals("time")) {
+                                                    time = val;
+                                                } else if (s.equals("ilastik_id")) {
+                                                    ilastik_id = val;
+                                                }
+                                            }
+
+                                            // resolve row key
+                                            RowKey key = m_nodeModel.resolveRowIds(ilastik_id, time);
+
+
+
+                                            if (mode.equals("\"hilite\"")) {
+                                                fireHiLiteEvent(key.toString());
+                                                System.out.println("hilte " + key);
+                                            } else if (mode.equals("\"unhilite\"")) {
+                                                fireUnHiliteEvent(key.toString());
+                                                System.out.println("unhilte " + key);
+                                            } else if (mode.equals("\"toggle\"")) {
+                                                fireToggleEvent(key.toString());
+                                                System.out.println("toggle " + key);
+                                            } else if (mode.equals("\"clear\"")) {
+                                                fireClearHiliteEvent();
+                                                System.out.println("clear");
+                                            } else {
+                                                System.err.println("Ilastik Hilite Server: Unknown Mode command!");
+                                            }
+                                            break;
                                         } catch (Exception e) {
-                                            System.out.println("connection with client interrupted!");
+                                            System.out
+                                                    .println("Ilastik Hilite Server: Can not execute hilite command!");
                                             m_clients.remove(client);
                                             break;
                                         }
@@ -194,6 +250,13 @@ public class IlastikHiliteServer {
     }
 
     // Listeners
+    private void fireToggleEvent(final String key) {
+        for (final IlastikHiliteListenerServer listener : m_listeners) {
+            listener.toggleHilite(key);
+        }
+    }
+
+    // Listeners
     private void fireClearHiliteEvent() {
         for (final IlastikHiliteListenerServer listener : m_listeners) {
             listener.clearHilites();
@@ -219,7 +282,7 @@ public class IlastikHiliteServer {
     }
 
     /**
-     * @return
+     * @return serverStatus
      */
     public boolean isShutDown() {
         for (final Socket client : m_clients) {
@@ -235,7 +298,7 @@ public class IlastikHiliteServer {
 
     /**
      *
-     * @return
+     * @return port
      */
     public int getPort() {
         return m_port;

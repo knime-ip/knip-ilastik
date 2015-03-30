@@ -50,14 +50,17 @@
 package org.knime.knip.ilastik.nodes.hilitebridge;
 
 /**
+ * @author Andrea Graumann, Univesity of Konstanz
  * @author Christian Dietz, University of Konstanz
  */
 public interface IlastikHiliteClient {
 
     /**
+     * Send changed position
+     *
      * @param pos
      */
-    void firePositionChangedCommand(double[] pos);
+    void sendPositionChangedCommand(double[] pos);
 
     /**
      * close the socket to ilastik
@@ -66,8 +69,17 @@ public interface IlastikHiliteClient {
 
     /**
      *
+     * Send handshae to ilastik
+     *
      * @param serverPort
      */
     void sendHandshakeToIlastik(final int serverPort);
+
+    /**
+     *
+     * @return
+     *      True client is connected
+     */
+    boolean isConnected();
 
 }

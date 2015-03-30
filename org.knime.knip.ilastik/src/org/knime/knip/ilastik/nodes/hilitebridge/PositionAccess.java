@@ -57,5 +57,10 @@ import org.knime.core.data.RowKey;
  */
 public interface PositionAccess {
 
+    /**
+     * @param objId
+     * @return
+     *      Position
+     */
     double[] getPositionRowKey(final RowKey objId);
 }

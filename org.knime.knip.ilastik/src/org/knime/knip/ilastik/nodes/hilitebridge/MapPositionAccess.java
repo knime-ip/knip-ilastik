@@ -61,6 +61,9 @@ public class MapPositionAccess implements PositionAccess {
 
     private Map<RowKey, double[]> map;
 
+    /**
+     * @param _map
+     */
     public MapPositionAccess(final Map<RowKey, double[]> _map) {
         this.map = _map;
     }

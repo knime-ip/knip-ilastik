@@ -108,7 +108,7 @@ public class IlastikHiliteBridgeNodeView extends NodeView<IlastikHiliteBridgeNod
         // create client
         m_client = new DefaultIlastikHiliteClient(m_nodeModel.getClientPort());
 
-        // creae Server
+        // create Server
         m_server = new IlastikHiliteServer(m_nodeModel.getServerPort(), m_client, m_nodeModel);
 
         //initializes gui
@@ -189,7 +189,7 @@ public class IlastikHiliteBridgeNodeView extends NodeView<IlastikHiliteBridgeNod
      * initialize GUI
      */
     private void initView() {
-        m_gui = new IlastikHiliteBridgeViewPanel(m_nodeModel.getPositionAccess(), m_client, m_server, m_nodeModel.getPositionMap(), m_nodeModel.getObjectIdMap());
+        m_gui = new IlastikHiliteBridgeViewPanel(m_nodeModel.getPositionAccess(), m_client, m_server, m_nodeModel.getMapPosAcces());
         setComponent(m_gui);
     }
 

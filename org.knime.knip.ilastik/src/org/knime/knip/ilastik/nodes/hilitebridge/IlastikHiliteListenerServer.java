@@ -56,15 +56,24 @@ public interface IlastikHiliteListenerServer {
 
     /**
      *
-     * @param event that a key was hilited
+     * @param key
+     *      event that a key was hilited
      */
     void keyHilited(final String key);
 
     /**
      *
-     * @param event that a key was unhilited
+     * @param key
+     *      event that a key was unhilited
      */
     void keyUnhilited(final String key);
+
+    /**
+     *
+     * @param key
+     *      event that toggle hilite status of a key
+     */
+    void toggleHilite(final String key);
 
     /**
      * Clears the hilites

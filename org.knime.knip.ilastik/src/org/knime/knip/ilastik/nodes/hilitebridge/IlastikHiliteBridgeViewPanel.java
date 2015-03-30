@@ -54,16 +54,15 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.JToggleButton;
 import javax.swing.table.DefaultTableModel;
 
 import org.knime.core.data.RowKey;
@@ -117,24 +116,26 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
      */
     private IlastikHiliteServer m_server;
 
-    private Map<RowKey, double[]> m_positionMap;
+    private MapPositionAccess m_mapAccess;
 
-    private Map<RowKey, Double> m_objectIdMap;
+
 
     /**
+     *
      * @param positionAccess
      * @param client
      * @param server
+     * @param mapAccess
      */
     public IlastikHiliteBridgeViewPanel(final PositionAccess positionAccess, final IlastikHiliteClient client,
-                                        final IlastikHiliteServer server, final Map<RowKey, double[]> positionMap, final Map<RowKey, Double> objectIdMap) {
+                                        final IlastikHiliteServer server, final MapPositionAccess mapAccess) {
         m_access = positionAccess;
         m_client = client;
         m_server = server;
         m_hiliteQueue = new LinkedList<RowKey>();
-        m_positionMap = positionMap;
-        m_objectIdMap = objectIdMap;
+        m_mapAccess = mapAccess;
 
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         init();
     }
 
@@ -173,10 +174,12 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
      */
     private void init() {
         m_serverStatus = new JLabel("Server is currently not running");
-        final JToggleButton serverToggle = new JToggleButton(m_server.isShutDown() ? "Start Server" : "Stop Server");
+        final JButton serverStart = new JButton("Start Server");
+        final JButton serverStop = new JButton("Stop Server");
 
         // init action listeners
-        initButtonActionListener(serverToggle);
+        startServer(serverStart);
+        stopServer(serverStop);
 
         if (m_access == null) {
             throw new IllegalArgumentException("Please reconfigure node");
@@ -190,7 +193,7 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
                 int row = target.getSelectedRow();
                 String selectedObject = (String) target.getModel().getValueAt(row, 0);
                 RowKey key = new RowKey(selectedObject);
-                m_client.firePositionChangedCommand(m_access.getPositionRowKey(m_currentHilite = key));
+                m_client.sendPositionChangedCommand(m_access.getPositionRowKey(m_currentHilite = key));
               }
             }
           });
@@ -199,13 +202,15 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
 
         // create panel
         final JPanel serverStatusPanel = new JPanel();
-        serverStatusPanel.setLayout(new BoxLayout(serverStatusPanel, BoxLayout.Y_AXIS));
+        serverStatusPanel.setLayout(new BoxLayout(serverStatusPanel, BoxLayout.X_AXIS));
         serverStatusPanel.setBorder(BorderFactory.createTitledBorder("Server Status"));
         serverStatusPanel.setSize(200, 20);
 
+        serverStatusPanel.add(serverStart);
+        serverStatusPanel.add(serverStop);
         serverStatusPanel.add(m_serverStatus);
         serverStatusPanel.add(new JLabel(" "));
-        serverStatusPanel.add(serverToggle);
+
         add(serverStatusPanel);
 
         final JPanel hilitesPanel = new JPanel();
@@ -224,22 +229,43 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
     }
 
     /**
-     * @param serverToggle
+     * @param btn
      */
-    private void initButtonActionListener(final JToggleButton serverToggle) {
-        serverToggle.addActionListener(new ActionListener() {
+    private void startServer(final JButton btn) {
+        btn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(final ActionEvent e) {
-                if (m_server.isShutDown()) {
-                    serverToggle.setText("Stop Server");
-                    m_serverStatus.setText("Server is running on port " + m_server.getPort());
+                //if (m_server.isShutDown()) {
                     m_server.startUp();
-                    updateUI();
-                } else {
-                    serverToggle.setText("Start Server");
-                    m_serverStatus.setText("Server currently not running");
+
+                    if (!m_server.isShutDown()) {
+                        m_serverStatus.setText("Server is running on port " + m_server.getPort());
+                        updateUI();
+                    }
+
+                    if(!m_client.isConnected()) {
+                        m_serverStatus.setText("Client is not connected. Please start Ilastik Server.");
+                        updateUI();
+                    }
+
+               // }
+            }
+        });
+    }
+
+    /**
+     * @param btn
+     */
+    private void stopServer(final JButton btn) {
+        btn.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                if (!m_server.isShutDown()) {
                     m_server.shutDown();
-                    updateUI();
+                    if (m_server.isShutDown()) {
+                        m_serverStatus.setText("Server currently not running");
+                        updateUI();
+                    }
                 }
             }
         });
@@ -250,18 +276,19 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
      */
     private void updateStatus() {
         // create table data
-        String[] header = {"RowId", "ObjectID", "X", "Y", "Time"};
-        String[][] data = new String[m_hiliteQueue.size()][6];
+        String[] header = {"RowId", "Ilastik ID", "X", "Y", "Z", "Channel", "Time"};
+        String[][] data = new String[m_hiliteQueue.size()][7];
 
         // fill data
         for (int i = 0; i < m_hiliteQueue.size(); i++) {
+            double[] pos = m_mapAccess.getPositionRowKey(new RowKey(m_hiliteQueue.get(i).getString()));
             data[i][0] = m_hiliteQueue.get(i).getString();
-            data[i][1] = String.valueOf(Math.round(m_objectIdMap.get(m_hiliteQueue.get(i))));
-            double[] pos = m_positionMap.get(m_hiliteQueue.get(i));
+            data[i][1] = String.valueOf(Math.round(pos[5]));
             data[i][2] = String.valueOf(Math.round(pos[0]));
             data[i][3] = String.valueOf(Math.round(pos[1]));
-            data[i][4] = String.valueOf(Math.round(pos[4]));
-
+            data[i][4] = String.valueOf(Math.round(pos[2]));
+            data[i][5] = String.valueOf(Math.round(pos[3]));
+            data[i][6] = String.valueOf(Math.round(pos[4]));
         }
 
         // create table model

@@ -57,6 +57,7 @@ import java.util.Map;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.DoubleValue;
+import org.knime.core.data.LongValue;
 import org.knime.core.data.RowKey;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.CanceledExecutionException;
@@ -98,11 +99,15 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
     private SettingsModelString m_tColModel = createTColModel();
 
+    private SettingsModelString m_ilastikIdColModel = createIlastikIdColModel();
+
     private SettingsModelString m_oIdColModel = createOIdColModel();
 
     private SettingsModelInteger m_clientPortModel = createClientPortModel();
 
     private SettingsModelInteger m_serverPortModel = createServerPortModel();
+
+    private BufferedDataTable[] m_inData;
 
     // X,Y,Z,C,T mapping
     final Map<RowKey, double[]> m_positionMap = new HashMap<RowKey, double[]>();
@@ -123,6 +128,10 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
     static SettingsModelString createTColModel() {
         return new SettingsModelString("t_model", "");
+    }
+
+    static SettingsModelString createIlastikIdColModel() {
+        return new SettingsModelString("ilastikId_model", "");
     }
 
     static SettingsModelString createCColModel() {
@@ -160,6 +169,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
             throws Exception {
         m_positionAccess = getPositionAccess(inData);
+        m_inData = inData;
 
         return null;
     }
@@ -177,11 +187,12 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
         int cCol = resolveIdx(m_cColModel, inData[0].getDataTableSpec());
         int tCol = resolveIdx(m_tColModel, inData[0].getDataTableSpec());
         int oIdCol = resolveIdx(m_oIdColModel, inData[0].getDataTableSpec());
+        int iIdCol = resolveIdx(m_ilastikIdColModel, inData[0].getDataTableSpec());
 
         // here we simply read in the data and remember the position data.
 
         for (final DataRow row : inData[0]) {
-            final double[] pos = new double[5];
+            final double[] pos = new double[6];
 
 
             if (xCol != -1) {
@@ -204,6 +215,10 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
                 pos[4] = ((DoubleValue)row.getCell(tCol)).getDoubleValue();
             }
 
+            if(iIdCol != -1) {
+                pos[5] = ((DoubleValue)row.getCell(iIdCol)).getDoubleValue();
+            }
+
             if (oIdCol != -1) {
                 Double oId = ((DoubleValue)row.getCell(oIdCol)).getDoubleValue();
                 m_objectIdMap.put(row.getKey(), oId);
@@ -214,6 +229,34 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
         return new MapPositionAccess(m_positionMap);
     }
+
+    /**
+     *
+     * @param iliast_id
+     * @param time_id
+     * @return
+     *      RowKey
+     * @throws InvalidSettingsException
+     */
+   public RowKey resolveRowIds(final int iliast_id, final int time_id) throws InvalidSettingsException{
+
+
+       int time_idx = resolveIdx(m_tColModel, m_inData[0].getDataTableSpec());
+       int ilastik_idx = resolveIdx(m_ilastikIdColModel, m_inData[0].getDataTableSpec());
+
+       for (final DataRow row : m_inData[0]) {
+
+           long t = ((LongValue)row.getCell(time_idx)).getLongValue();
+           long i = ((LongValue)row.getCell(ilastik_idx)).getLongValue();
+
+           if (t == time_id && i == iliast_id) {
+            return row.getKey();
+        }
+
+       }
+
+       return null;
+   }
 
    private int resolveIdx(final SettingsModelString model, final DataTableSpec spec) throws InvalidSettingsException {
         if (model.getStringValue() == null) {
@@ -245,6 +288,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
         m_zColModel.saveSettingsTo(settings);
         m_oIdColModel.saveSettingsTo(settings);
         m_serverPortModel.saveSettingsTo(settings);
+        m_ilastikIdColModel.saveSettingsTo(settings);
     }
 
     @Override
@@ -258,6 +302,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
         m_zColModel.validateSettings(settings);
         m_oIdColModel.validateSettings(settings);
         m_serverPortModel.validateSettings(settings);
+        m_ilastikIdColModel.validateSettings(settings);
     }
 
     @Override
@@ -271,6 +316,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
         m_yColModel.loadSettingsFrom(settings);
         m_zColModel.loadSettingsFrom(settings);
         m_oIdColModel.loadSettingsFrom(settings);
+        m_ilastikIdColModel.loadSettingsFrom(settings);
     }
 
     @Override
@@ -294,17 +340,38 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
     /**
      * @return
+     *          serverPort
      */
     public int getServerPort() {
         return m_serverPortModel.getIntValue();
     }
 
+    /**
+     *
+     * @return
+     *      all Positions as Map
+     */
     public Map<RowKey, double[]> getPositionMap() {
         return m_positionMap;
     }
 
+    /**
+     *
+     * @return
+     *      all object Ids as Map
+     */
     public Map<RowKey, Double> getObjectIdMap() {
        return m_objectIdMap;
+    }
+
+
+    /**
+     *
+     * @return
+     *      map with all positions
+     */
+    public MapPositionAccess getMapPosAcces() {
+        return m_positionAccess;
     }
 
 }

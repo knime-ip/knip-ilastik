@@ -72,6 +72,8 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
 
     private int m_clientPort;
 
+    private boolean isConnected = false;
+
     /**
      *
      * @param clientPort
@@ -84,7 +86,7 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
      * {@inheritDoc}
      */
     @Override
-    public void firePositionChangedCommand(final double[] pos) {
+    public void sendPositionChangedCommand(final double[] pos) {
         establishConnection();
         final JsonObjectBuilder obj = Json.createObjectBuilder().add("command", "setviewerposition");
 
@@ -116,7 +118,7 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
             // close writer
             writer.close();
         } catch (final IOException e) {
-            e.printStackTrace();
+            System.out.println("No socket available");
         }
     }
 
@@ -131,10 +133,13 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
             try {
                 // create new socket with localhost to client port
                 m_socket = new Socket("localhost", m_clientPort);
+                isConnected = true;
             } catch (UnknownHostException e) {
-                throw new RuntimeException(e);
+                //                throw new RuntimeException(e);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                //                throw new RuntimeException(e);
+                isConnected = false;
+                System.out.println("Please start Ilastik server!");
             }
         }
 
@@ -151,17 +156,19 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
         // make a connection
         establishConnection();
 
-        // create json object to send
-        final JsonObjectBuilder obj = Json.createObjectBuilder().add("command", "handshake");
+        if (m_socket != null) {
+            // create json object to send
+            final JsonObjectBuilder obj = Json.createObjectBuilder().add("command", "handshake");
 
-        // from
-        obj.add("name", "knime");
+            // from
+            obj.add("name", "knime");
 
-        // which port
-        obj.add("port", serverPort);
+            // which port
+            obj.add("port", serverPort);
 
-        // write to stream
-        writeJSONObjectToStream(obj.build());
+            // write to stream
+            writeJSONObjectToStream(obj.build());
+        }
     }
 
     /**
@@ -175,7 +182,16 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
                 m_socket.close();
             }
         } catch (IOException e) {
+            System.err.println("IlastikHiliteClient: Error when closing connection");
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isConnected() {
+        return isConnected;
     }
 }
