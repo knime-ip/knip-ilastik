@@ -68,10 +68,19 @@ import javax.json.JsonWriter;
  */
 public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
 
+    /**
+     * Store socket
+     */
     private Socket m_socket;
 
+    /**
+     * Client Port
+     */
     private int m_clientPort;
 
+    /**
+     * Is there a connection
+     */
     private boolean isConnected = false;
 
     /**
@@ -87,15 +96,22 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
      */
     @Override
     public void sendPositionChangedCommand(final double[] pos) {
+
+        // create connection
         establishConnection();
+
+        // Build json document
         final JsonObjectBuilder obj = Json.createObjectBuilder().add("command", "setviewerposition");
 
+        // create obj to send to ilastik
         obj.add("x", pos[0]);
         obj.add("y", pos[1]);
         obj.add("z", pos[2]);
         obj.add("c", pos[3]);
         obj.add("t", pos[4]);
+        obj.add("name", "knime");
 
+        // write object to stream
         writeJSONObjectToStream(obj.build());
     }
 
@@ -135,9 +151,9 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
                 m_socket = new Socket("localhost", m_clientPort);
                 isConnected = true;
             } catch (UnknownHostException e) {
-                //                throw new RuntimeException(e);
+                throw new RuntimeException(e);
             } catch (IOException e) {
-                //                throw new RuntimeException(e);
+                // is Not Connected
                 isConnected = false;
                 System.out.println("Please start Ilastik server!");
             }

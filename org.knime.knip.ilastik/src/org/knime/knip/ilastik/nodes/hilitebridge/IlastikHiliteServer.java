@@ -84,29 +84,57 @@ public class IlastikHiliteServer {
     public final static String OID_NAME = "objectid";
 
     /**
-     *
+     * Identifier for ilastik id
      */
     public final static String ILASTIK_ID = "ilastik_id";
 
     /**
-     *
+     * Identifier for time id
      */
     public final static String TIME_ID = "time_id";
 
+    /**
+     * Status of server
+     */
     private boolean m_isShutDown = true;
 
+    /**
+     * Server socket
+     */
     private ServerSocket m_server;
 
+    /**
+     * All hilite listeners
+     */
     private List<IlastikHiliteListenerServer> m_listeners;
 
+    /**
+     * All clients
+     */
     private List<Socket> m_clients = new ArrayList<Socket>();
 
+    /**
+     * Port
+     */
     private int m_port;
 
+    /**
+     * Ilastik hilite client
+     */
     private IlastikHiliteClient m_client;
 
+    /**
+     * Node Model
+     */
     private IlastikHiliteBridgeNodeModel m_nodeModel;
 
+    /**
+     * Constructor
+     *
+     * @param portNumber
+     * @param client
+     * @param model
+     */
     IlastikHiliteServer(final int portNumber, final IlastikHiliteClient client, final IlastikHiliteBridgeNodeModel model) {
         m_listeners = new ArrayList<IlastikHiliteListenerServer>();
         m_port = portNumber;
@@ -115,7 +143,7 @@ public class IlastikHiliteServer {
     }
 
     /**
-     *
+     * Start server!
      */
     void startUp() {
         if (!m_isShutDown) {

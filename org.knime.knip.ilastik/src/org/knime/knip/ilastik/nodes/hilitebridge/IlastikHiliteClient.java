@@ -78,7 +78,7 @@ public interface IlastikHiliteClient {
     /**
      *
      * @return
-     *      True client is connected
+     *      True if client is connected
      */
     boolean isConnected();
 

@@ -73,8 +73,10 @@ import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.knip.ilastik.nodes.NodeTools;
 
 /**
+ * Node Model for Ilastik Hilite Bridge
  *
- * @author Christian Dietz
+ * @author Andreas Graumann, University of Konstanz
+ * @author Christian Dietz, Univesity of Konstanz
  */
 public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
@@ -85,32 +87,74 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
         super(1, 0);
     }
 
+    /**
+     * Map with all positions
+     */
     private MapPositionAccess m_positionAccess;
 
+    /**
+     * Keep table in memory
+     */
     private SettingsModelBoolean m_keepInMemory = createSettingsModelBoolean();
 
+    /**
+     * Settings Model for X Column
+     */
     private SettingsModelString m_xColModel = createXColModel();
 
+    /**
+     * Settings Model for Y Column
+     */
     private SettingsModelString m_yColModel = createYColModel();
 
+    /**
+     * Settings Model for Z Column
+     */
     private SettingsModelString m_zColModel = createZColModel();
 
+    /**
+     * Settings Model for Channel Column
+     */
     private SettingsModelString m_cColModel = createCColModel();
 
+    /**
+     * Settings Model for Time Column
+     */
     private SettingsModelString m_tColModel = createTColModel();
 
+    /**
+     * Settings Model for IlastikID Column
+     */
     private SettingsModelString m_ilastikIdColModel = createIlastikIdColModel();
 
+    /**
+     * Settings Model for ObjectId Column
+     */
     private SettingsModelString m_oIdColModel = createOIdColModel();
 
+    /**
+     * Settings Model for Client Port
+     */
     private SettingsModelInteger m_clientPortModel = createClientPortModel();
 
+    /**
+     * Settings Model for Server Port
+     */
     private SettingsModelInteger m_serverPortModel = createServerPortModel();
 
+    /**
+     * Data Table
+     */
     private BufferedDataTable[] m_inData;
 
-    // X,Y,Z,C,T mapping
+    /**
+     *
+     */
     final Map<RowKey, double[]> m_positionMap = new HashMap<RowKey, double[]>();
+
+    /**
+     *
+     */
     final Map<RowKey, Double> m_objectIdMap = new HashMap<RowKey, Double>();
 
 
@@ -121,6 +165,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
     protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
         return null;
     }
+
 
     static SettingsModelString createOIdColModel() {
         return new SettingsModelString("oid_model", "");
@@ -177,6 +222,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
     /**
      * @param inData
      * @return
+     *      Map with all positions
      * @throws InvalidSettingsException
      */
     private MapPositionAccess getPositionAccess(final BufferedDataTable[] inData) throws InvalidSettingsException {
@@ -232,6 +278,8 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
     /**
      *
+     * Get Row Key for row with time = time_id and ilastik_id
+     *
      * @param iliast_id
      * @param time_id
      * @return
@@ -239,7 +287,6 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
      * @throws InvalidSettingsException
      */
    public RowKey resolveRowIds(final int iliast_id, final int time_id) throws InvalidSettingsException{
-
 
        int time_idx = resolveIdx(m_tColModel, m_inData[0].getDataTableSpec());
        int ilastik_idx = resolveIdx(m_ilastikIdColModel, m_inData[0].getDataTableSpec());
@@ -258,6 +305,15 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
        return null;
    }
 
+   /**
+    * Resolve column index
+    *
+    * @param model
+    * @param spec
+    * @return
+    *       index
+    * @throws InvalidSettingsException
+    */
    private int resolveIdx(final SettingsModelString model, final DataTableSpec spec) throws InvalidSettingsException {
         if (model.getStringValue() == null) {
             return -1;

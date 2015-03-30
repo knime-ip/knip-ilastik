@@ -122,6 +122,8 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
 
     /**
      *
+     * Constructor
+     *
      * @param positionAccess
      * @param client
      * @param server
@@ -140,7 +142,7 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
     }
 
     /**
-     *
+     * Clears all hilites
      */
     public void clearAllHilites() {
         m_hiliteQueue.clear();
@@ -149,6 +151,7 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
     }
 
     /**
+     * Clear a set of hilites
      *
      * @param hilites
      */
@@ -161,6 +164,7 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
     }
 
     /**
+     * Update current hilites
      *
      * @param hilites
      */
@@ -185,6 +189,7 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
             throw new IllegalArgumentException("Please reconfigure node");
         }
 
+        // mouse listener, the user can click on a row within the table to move the ilastik viewer to this position
         m_table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(final MouseEvent e) {
@@ -229,6 +234,8 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
     }
 
     /**
+     * Action Listener for start button
+     *
      * @param btn
      */
     private void startServer(final JButton btn) {
@@ -254,6 +261,8 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
     }
 
     /**
+     * Action Listener for stop button
+     *
      * @param btn
      */
     private void stopServer(final JButton btn) {
@@ -272,7 +281,7 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
     }
 
     /**
-     *
+     * Update Current Status and table with current hilites
      */
     private void updateStatus() {
         // create table data

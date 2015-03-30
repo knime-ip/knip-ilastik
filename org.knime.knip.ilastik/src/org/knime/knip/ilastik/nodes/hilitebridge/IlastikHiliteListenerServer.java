@@ -50,6 +50,7 @@
 package org.knime.knip.ilastik.nodes.hilitebridge;
 
 /**
+ * @author Andreas Graumann, University of Konstanz
  * @author Christian Dietz, University of Konstanz
  */
 public interface IlastikHiliteListenerServer {

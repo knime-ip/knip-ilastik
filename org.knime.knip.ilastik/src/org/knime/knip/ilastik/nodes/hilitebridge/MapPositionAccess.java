@@ -55,7 +55,8 @@ import org.knime.core.data.RowKey;
 
 /**
  *
- * @author Christian Dietz
+ * @author Andreas Graumann, Univesity of Konstanz
+ * @author Christian Dietz, Univesity of Konstanz
  */
 public class MapPositionAccess implements PositionAccess {
 

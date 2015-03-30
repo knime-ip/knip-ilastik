@@ -61,11 +61,15 @@ import org.knime.core.node.defaultnodesettings.DialogComponentColumnNameSelectio
 import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
 
 /**
+ * @author Andreas Graumann, University of Konstanz
  * @author Christian Dietz, University of Konstanz
  */
 public class IlastikHiliteBridgeNodeFactory extends NodeFactory<IlastikHiliteBridgeNodeModel> implements
         BufferedDataTableHolder {
 
+    /**
+     * Data Table
+     */
     private BufferedDataTable m_data;
 
     /**
