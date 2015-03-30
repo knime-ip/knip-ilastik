@@ -56,21 +56,41 @@ import org.knime.core.node.property.hilite.HiLiteListener;
 import org.knime.core.node.property.hilite.KeyEvent;
 
 /**
+ * Node View for Ilastik Hilite Bridge
  *
- * @author Christian Dietz, Jonathan Hale
+ * @author Christian Dietz, University of Konstanz
+ * @author Andreas Graumann, University of Konstanz
  */
 public class IlastikHiliteBridgeNodeView extends NodeView<IlastikHiliteBridgeNodeModel> {
 
+    /**
+     * JPanel for Gui
+     */
     private IlastikHiliteBridgeViewPanel m_gui; //GUI components (is a JPanel)
 
+    /**
+     * Node Model
+     */
     private IlastikHiliteBridgeNodeModel m_nodeModel; //NodeModel
 
+    /**
+     * Hilite Listener
+     */
     private HiLiteListener m_hiliteListener;
 
+    /**
+     * Hilite Handler
+     */
     private HiLiteHandler m_inHiLiteHandler;
 
+    /**
+     * Ilastik Hilite Client
+     */
     private DefaultIlastikHiliteClient m_client;
 
+    /**
+     * Ilastik Hilite Server
+     */
     private IlastikHiliteServer m_server;
 
     /**
@@ -81,12 +101,18 @@ public class IlastikHiliteBridgeNodeView extends NodeView<IlastikHiliteBridgeNod
      */
     protected IlastikHiliteBridgeNodeView(final IlastikHiliteBridgeNodeModel _model) {
         super(_model);
-        m_nodeModel = getNodeModel();
-        m_client = new DefaultIlastikHiliteClient(m_nodeModel.getClientPort());
-        m_server = new IlastikHiliteServer(m_nodeModel.getServerPort(), m_client);
 
-        initView(); //initializes m_gui
-        initLogic();
+        // get NodelModel
+        m_nodeModel = getNodeModel();
+
+        // create client
+        m_client = new DefaultIlastikHiliteClient(m_nodeModel.getClientPort());
+
+        // creae Server
+        m_server = new IlastikHiliteServer(m_nodeModel.getServerPort(), m_client, m_nodeModel);
+
+        //initializes gui
+        initView();
     }
 
     /**
@@ -94,13 +120,18 @@ public class IlastikHiliteBridgeNodeView extends NodeView<IlastikHiliteBridgeNod
      */
     private void initLogic() {
 
+        // remove all hilite listener so far, start from sratch
         if (m_inHiLiteHandler != null) {
             m_inHiLiteHandler.removeHiLiteListener(m_hiliteListener);
         }
 
+        // get hilite handler
         m_inHiLiteHandler = m_nodeModel.getInHiLiteHandler(0);
+
+        // update hilites in JPanel
         m_gui.updateHilites(m_inHiLiteHandler.getHiLitKeys());
 
+        // create a new hilite listener
         m_hiliteListener = new HiLiteListener() {
 
             @Override
@@ -119,12 +150,15 @@ public class IlastikHiliteBridgeNodeView extends NodeView<IlastikHiliteBridgeNod
             }
         };
 
+        // add this hilite listener
         m_inHiLiteHandler.addHiLiteListener(m_hiliteListener);
 
+        // register listener add server
         m_server.registerListener(new IlastikHiliteListenerServer() {
 
             @Override
             public void keyUnhilited(final String key) {
+
                 m_inHiLiteHandler.fireUnHiLiteEvent(new RowKey(key));
             }
 
@@ -136,6 +170,17 @@ public class IlastikHiliteBridgeNodeView extends NodeView<IlastikHiliteBridgeNod
             @Override
             public void clearHilites() {
                 m_inHiLiteHandler.fireClearHiLiteEvent();
+            }
+
+            @Override
+            public void toggleHilite(final String key) {
+                if (m_inHiLiteHandler.isHiLit(new RowKey(key))) {
+                    m_inHiLiteHandler.fireUnHiLiteEvent(new RowKey(key));
+                }
+                else {
+                    m_inHiLiteHandler.fireHiLiteEvent(new RowKey(key));
+                }
+
             }
         });
     }
