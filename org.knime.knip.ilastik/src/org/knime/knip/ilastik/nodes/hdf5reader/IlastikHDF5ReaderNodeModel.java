@@ -617,7 +617,7 @@ private ImgPlusCell<T> createImgPlusCell(final ExecutionContext exec, final IHDF
                 }
 
                 if (elementSize == 2) {
-                    return reader.int16().readMDArray(elementPath);
+                    return reader.int64().readMDArray(elementPath);
                 }
 
                 if (elementSize == 4) {
