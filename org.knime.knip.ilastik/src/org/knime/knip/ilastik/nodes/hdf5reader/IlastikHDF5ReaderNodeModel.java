@@ -102,6 +102,7 @@ import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.node.property.hilite.HiLiteHandler;
 import org.knime.knip.base.data.img.ImgPlusCell;
 import org.knime.knip.base.data.img.ImgPlusCellFactory;
 import org.knime.knip.core.data.DefaultNamed;
@@ -208,6 +209,21 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
      */
     int addColumnsToFeatureTable = 1;
 
+    /**
+     * Hilite handler for first output
+     */
+    private final HiLiteHandler h0 = new HiLiteHandler();
+
+    /**
+     * Hilite handler for second output
+     */
+    private final HiLiteHandler h1 = new HiLiteHandler();
+
+    /**
+     * Hilite handler for third output
+     */
+    private final HiLiteHandler h2 = new HiLiteHandler();
+
     enum DatasetType {
         IMAGE("image"), LABELING("labeling");
 
@@ -234,6 +250,23 @@ public class IlastikHDF5ReaderNodeModel<T extends NativeType<T> & RealType<T>> e
         super(nrInDataPorts, nrOutDataPorts);
 
     }
+
+    @Override
+    public HiLiteHandler getOutHiLiteHandler(final int outIndex) {
+        if (outIndex == 0) {
+            return h0;
+        }
+
+        if (outIndex == 1) {
+            return h1;
+        }
+
+        if (outIndex == 2) {
+            return h2;
+        }
+
+        return null;
+    };
 
     /**
      * {@inheritDoc}

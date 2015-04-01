@@ -137,7 +137,7 @@ public class IlastikHiliteBridgeNodeFactory extends NodeFactory<IlastikHiliteBri
 
                 createNewGroup("Communication Settings");
                 addDialogComponent(new DialogComponentNumber(IlastikHiliteBridgeNodeModel.createClientPortModel(),
-                        "Client Port", 1));
+                        "Remote Port", 1));
 
                 addDialogComponent(new DialogComponentNumber(IlastikHiliteBridgeNodeModel.createServerPortModel(),
                         "Server Port", 1));
