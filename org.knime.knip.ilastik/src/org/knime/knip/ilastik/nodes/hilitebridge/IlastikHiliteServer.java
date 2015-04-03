@@ -210,20 +210,14 @@ public class IlastikHiliteServer {
                                             // resolve row key
                                             RowKey key = m_nodeModel.resolveRowIds(ilastik_id, time);
 
-
-
                                             if (mode.equals("\"hilite\"")) {
                                                 fireHiLiteEvent(key.toString());
-                                                System.out.println("hilte " + key);
                                             } else if (mode.equals("\"unhilite\"")) {
                                                 fireUnHiliteEvent(key.toString());
-                                                System.out.println("unhilte " + key);
                                             } else if (mode.equals("\"toggle\"")) {
                                                 fireToggleEvent(key.toString());
-                                                System.out.println("toggle " + key);
                                             } else if (mode.equals("\"clear\"")) {
                                                 fireClearHiliteEvent();
-                                                System.out.println("clear");
                                             } else {
                                                 System.err.println("Ilastik Hilite Server: Unknown Mode command!");
                                             }
