@@ -54,6 +54,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import javax.json.Json;
@@ -187,11 +188,12 @@ public class IlastikHiliteServer {
                                                 break;
                                             }
 
-
                                             // get positions to hilite
                                             JsonObject objwehre = obj.getJsonObject("where");
-
                                             JsonArray arr = objwehre.getJsonArray("operands");
+
+                                            // store all attributes in a list
+                                            HashMap<String, Integer> attr = new HashMap<String, Integer>();
 
                                             int time = -1;
                                             int ilastik_id = -1;
@@ -200,6 +202,9 @@ public class IlastikHiliteServer {
                                                 JsonObject o = arr.getJsonObject(i);
                                                 String s = o.getString("row");
                                                 int val = o.getInt("value");
+
+                                                attr.put(s, val);
+
                                                 if (s.equals("time")) {
                                                     time = val;
                                                 } else if (s.equals("ilastik_id")) {
@@ -209,17 +214,20 @@ public class IlastikHiliteServer {
 
                                             // resolve row key
                                             RowKey key = m_nodeModel.resolveRowIds(ilastik_id, time);
+                                            ArrayList<RowKey> keyList = m_nodeModel.resolveRowIdsByMap(attr, true);
 
-                                            if (mode.equals("\"hilite\"")) {
-                                                fireHiLiteEvent(key.toString());
-                                            } else if (mode.equals("\"unhilite\"")) {
-                                                fireUnHiliteEvent(key.toString());
-                                            } else if (mode.equals("\"toggle\"")) {
-                                                fireToggleEvent(key.toString());
-                                            } else if (mode.equals("\"clear\"")) {
-                                                fireClearHiliteEvent();
-                                            } else {
-                                                System.err.println("Ilastik Hilite Server: Unknown Mode command!");
+                                            for (RowKey k : keyList) {
+                                                if (mode.equals("\"hilite\"")) {
+                                                    fireHiLiteEvent(k.toString());
+                                                } else if (mode.equals("\"unhilite\"")) {
+                                                    fireUnHiliteEvent(k.toString());
+                                                } else if (mode.equals("\"toggle\"")) {
+                                                    fireToggleEvent(k.toString());
+                                                } else if (mode.equals("\"clear\"")) {
+                                                    fireClearHiliteEvent();
+                                                } else {
+                                                    System.err.println("Ilastik Hilite Server: Unknown Mode command!");
+                                                }
                                             }
                                             break;
                                         } catch (Exception e) {

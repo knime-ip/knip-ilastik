@@ -51,6 +51,7 @@ package org.knime.knip.ilastik.nodes.hilitebridge;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -301,8 +302,70 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
         }
 
        }
-
        return null;
+   }
+
+   /**
+    *
+    * Get list of row keys which conforms to the given attributes
+    *
+    * @param attr
+    *       Map with all attributes to resolve the row ids
+    * @param and
+    *       Mode: False = OR, True = AND
+    * @return
+    *       Map with all desired RowKeys
+    */
+   public ArrayList<RowKey> resolveRowIdsByMap(final HashMap<String, Integer> attr, final boolean and) {
+
+       ArrayList<RowKey> keys = new ArrayList<RowKey>();
+
+       // run over all rows
+       for (final DataRow row : m_inData[0]) {
+
+           boolean validRow = false;
+
+           for (Map.Entry<String, Integer> e : attr.entrySet()) {
+               String colName = e.getKey();
+               long desiredValue = e.getValue();
+
+               int colIdx = getColumnIdxByName(colName, m_inData[0].getDataTableSpec());
+               long givenValue = ((LongValue)row.getCell(colIdx)).getLongValue();
+
+               if (desiredValue == givenValue) {
+                   validRow = true;
+                   if (!and) {
+                       break;
+                   }
+               } else {
+                   validRow = false;
+               }
+           }
+           if (validRow) {
+               keys.add(row.getKey());
+           }
+
+        }
+
+
+       return keys;
+   }
+
+   /**
+    *
+    * @param colName
+    *       Name of searched column
+    * @param spec
+    *       DataTableSpec
+    * @return
+    */
+   private int getColumnIdxByName(final String colName, final DataTableSpec spec) {
+
+       if (!spec.containsName(colName)) {
+           return -1;
+       }
+
+       return spec.findColumnIndex(colName);
    }
 
    /**
