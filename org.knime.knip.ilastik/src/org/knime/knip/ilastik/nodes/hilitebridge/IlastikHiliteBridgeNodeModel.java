@@ -329,7 +329,13 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
                String colName = e.getKey();
                long desiredValue = e.getValue();
 
+
                int colIdx = getColumnIdxByName(colName, m_inData[0].getDataTableSpec());
+
+               if (colIdx == -1) {
+                   break;
+               }
+
                long givenValue = ((LongValue)row.getCell(colIdx)).getLongValue();
 
                if (desiredValue == givenValue) {

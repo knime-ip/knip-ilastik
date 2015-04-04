@@ -192,6 +192,14 @@ public class IlastikHiliteServer {
                                             JsonObject objwehre = obj.getJsonObject("where");
                                             JsonArray arr = objwehre.getJsonArray("operands");
 
+                                            // get mode: AND/OR
+                                            boolean and = true;
+                                            String m = objwehre.get("operator").toString();
+                                            if (m.equals("\"or\"")) {
+                                                and = false;
+                                            }
+
+
                                             // store all attributes in a list
                                             HashMap<String, Integer> attr = new HashMap<String, Integer>();
 
@@ -214,7 +222,7 @@ public class IlastikHiliteServer {
 
                                             // resolve row key
                                             RowKey key = m_nodeModel.resolveRowIds(ilastik_id, time);
-                                            ArrayList<RowKey> keyList = m_nodeModel.resolveRowIdsByMap(attr, true);
+                                            ArrayList<RowKey> keyList = m_nodeModel.resolveRowIdsByMap(attr, and);
 
                                             for (RowKey k : keyList) {
                                                 if (mode.equals("\"hilite\"")) {
