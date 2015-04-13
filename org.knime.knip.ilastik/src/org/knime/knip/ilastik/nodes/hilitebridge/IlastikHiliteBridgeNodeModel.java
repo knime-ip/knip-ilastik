@@ -345,6 +345,9 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
                    }
                } else {
                    validRow = false;
+                   if (and) {
+                       break;
+                   }
                }
            }
            if (validRow) {
