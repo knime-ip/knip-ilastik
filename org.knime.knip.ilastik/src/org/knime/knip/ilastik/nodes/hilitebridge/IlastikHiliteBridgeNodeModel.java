@@ -53,6 +53,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.knime.core.data.DataRow;
@@ -316,7 +317,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
     * @return
     *       Map with all desired RowKeys
     */
-   public ArrayList<RowKey> resolveRowIdsByMap(final HashMap<String, Integer> attr, final boolean and) {
+   public ArrayList<RowKey> resolveRowIdsByMap(final HashMap<String, List<Integer>> attr, final boolean and) {
 
        ArrayList<RowKey> keys = new ArrayList<RowKey>();
 
@@ -325,10 +326,8 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
            boolean validRow = false;
 
-           for (Map.Entry<String, Integer> e : attr.entrySet()) {
+           for (Map.Entry<String, List<Integer>> e : attr.entrySet()) {
                String colName = e.getKey();
-               long desiredValue = e.getValue();
-
 
                int colIdx = getColumnIdxByName(colName, m_inData[0].getDataTableSpec());
 
@@ -336,18 +335,28 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
                    break;
                }
 
-               long givenValue = ((LongValue)row.getCell(colIdx)).getLongValue();
+               boolean isBreak = false;
+               for (Integer v : e.getValue()) {
+                   long desiredValue = v;
 
-               if (desiredValue == givenValue) {
-                   validRow = true;
-                   if (!and) {
-                       break;
+                   long givenValue = ((LongValue)row.getCell(colIdx)).getLongValue();
+
+                   if (desiredValue == givenValue) {
+                       validRow = true;
+                       if (!and) {
+                           isBreak = true;
+                           break;
+                       }
+                   } else {
+                       validRow = false;
+                       if (and) {
+                           isBreak = true;
+                           break;
+                       }
                    }
-               } else {
-                   validRow = false;
-                   if (and) {
-                       break;
-                   }
+               }
+               if (isBreak) {
+                   break;
                }
            }
            if (validRow) {

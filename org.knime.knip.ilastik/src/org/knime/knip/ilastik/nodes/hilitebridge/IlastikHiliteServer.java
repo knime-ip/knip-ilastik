@@ -199,9 +199,8 @@ public class IlastikHiliteServer {
                                                 and = false;
                                             }
 
-
                                             // store all attributes in a list
-                                            HashMap<String, Integer> attr = new HashMap<String, Integer>();
+                                            HashMap<String, List<Integer>> attr = new HashMap<String, List<Integer>>();
 
                                             int time = -1;
                                             int ilastik_id = -1;
@@ -211,17 +210,20 @@ public class IlastikHiliteServer {
                                                 String s = o.getString("row");
                                                 int val = o.getInt("value");
 
-                                                attr.put(s, val);
-
-                                                if (s.equals("time")) {
-                                                    time = val;
-                                                } else if (s.equals("ilastik_id")) {
-                                                    ilastik_id = val;
+                                                List<Integer> list = null;
+                                                if (!attr.containsKey(s)) {
+                                                    list = new ArrayList<Integer>();
+                                                    list.add(val);
+                                                } else {
+                                                    list = attr.get(s);
+                                                    list.add(val);
                                                 }
+                                                attr.put(s, list);
+
+
                                             }
 
                                             // resolve row key
-                                            RowKey key = m_nodeModel.resolveRowIds(ilastik_id, time);
                                             ArrayList<RowKey> keyList = m_nodeModel.resolveRowIdsByMap(attr, and);
 
                                             for (RowKey k : keyList) {
