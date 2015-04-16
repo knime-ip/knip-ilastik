@@ -207,7 +207,7 @@ public class IlastikHiliteServer {
 
                                             for (int i = 0; i < arr.size(); i++) {
                                                 JsonObject o = arr.getJsonObject(i);
-                                                String s = o.getString("row");
+                                                String s = o.getString("column");
                                                 int val = o.getInt("value");
 
                                                 List<Integer> list = null;
