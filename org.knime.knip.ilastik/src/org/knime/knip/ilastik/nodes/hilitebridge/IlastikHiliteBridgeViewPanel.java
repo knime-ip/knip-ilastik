@@ -51,8 +51,7 @@ package org.knime.knip.ilastik.nodes.hilitebridge;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
 
@@ -63,6 +62,9 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 
 import org.knime.core.data.RowKey;
@@ -189,19 +191,10 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
             throw new IllegalArgumentException("Please reconfigure node");
         }
 
-        // mouse listener, the user can click on a row within the table to move the ilastik viewer to this position
-        m_table.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(final MouseEvent e) {
-              if (e.getClickCount() == 1) {
-                JTable target = (JTable)e.getSource();
-                int row = target.getSelectedRow();
-                String selectedObject = (String) target.getModel().getValueAt(row, 0);
-                RowKey key = new RowKey(selectedObject);
-                m_client.sendPositionChangedCommand(m_access.getPositionRowKey(m_currentHilite = key));
-              }
-            }
-          });
+
+        m_table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        m_table.getSelectionModel().addListSelectionListener(new HiliteListSelectionListener(m_table, m_client,
+                                                                                             m_access));
 
         updateStatus();
 
@@ -301,9 +294,81 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
         }
 
         // create table model
-        DefaultTableModel tableModel = new DefaultTableModel(data, header);
+        DefaultTableModel tableModel = new DefaultTableModel(data, header) {
+            /**
+             *
+             */
+            private static final long serialVersionUID = -8548670216189115348L;
+
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public boolean isCellEditable(final int row, final int column) {
+                return false;
+            }
+        };
         m_table.setModel(tableModel);
 
         updateUI();
+    }
+}
+
+
+class HiliteListSelectionListener implements ListSelectionListener
+{
+    JTable m_table;
+    IlastikHiliteClient m_client;
+    PositionAccess m_access;
+    Set<Integer> oldSelection = new HashSet<Integer>();
+    Set<Integer> addSet;
+    Set<Integer> removeSet;
+
+    public HiliteListSelectionListener(final JTable table, final IlastikHiliteClient client,
+                                       final PositionAccess access) {
+        m_table = table;
+        m_client = client;
+        m_access = access;
+    }
+
+    @Override
+    public void valueChanged(final ListSelectionEvent e) {
+        if(e.getValueIsAdjusting()) {
+            return;
+        }
+
+        fillSet(m_table.getSelectedRows());
+
+        removeSet.removeAll(addSet);
+        addSet.removeAll(oldSelection);
+        doHilite();
+
+        oldSelection.removeAll(removeSet);
+        oldSelection.addAll(addSet);
+    }
+
+    private void fillSet(final int[] array) {
+        addSet = new HashSet<Integer>(array.length);
+        removeSet = new HashSet<Integer>(oldSelection);
+        for(int item : array) {
+            addSet.add(new Integer(item));
+        }
+    }
+
+    private void doHilite() {
+        System.out.println("Removing:");
+        for(Integer row : removeSet) {
+            RowKey key = new RowKey((String)m_table.getModel().getValueAt(row.intValue(), 0));
+            m_client.sendPositionChangedCommand(m_access.getPositionRowKey(key), true, true);
+            System.out.print(" " + row.intValue());
+
+        }
+        System.out.println("\nAdding:");
+        for(Integer row : addSet) {
+            RowKey key = new RowKey((String)m_table.getModel().getValueAt(row.intValue(), 0));
+            m_client.sendPositionChangedCommand(m_access.getPositionRowKey(key), true, false);
+            System.out.print(" " + row.intValue());
+        }
+        System.out.println("\n");
     }
 }

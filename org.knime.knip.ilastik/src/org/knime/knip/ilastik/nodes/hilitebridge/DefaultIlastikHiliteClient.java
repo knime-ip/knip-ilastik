@@ -95,13 +95,18 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
      * {@inheritDoc}
      */
     @Override
-    public void sendPositionChangedCommand(final double[] pos) {
+    public void sendPositionChangedCommand(final double[] pos, final boolean affectOthers, final boolean clear) {
 
         // create connection
         establishConnection();
 
         // Build json document
-        final JsonObjectBuilder obj = Json.createObjectBuilder().add("command", "setviewerposition");
+        String command = "setviewerposition";
+        if (clear) {
+            command = "unsetviewerposition";
+        }
+
+        final JsonObjectBuilder obj = Json.createObjectBuilder().add("command", command);
 
         // create obj to send to ilastik
         obj.add("x", pos[0]);
@@ -110,10 +115,12 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
         obj.add("c", pos[3]);
         obj.add("t", pos[4]);
         obj.add("name", "knime");
+        obj.add("keep", affectOthers);
 
         // write object to stream
         writeJSONObjectToStream(obj.build());
     }
+
 
     /**
      * Writing JsonObject to output stream
