@@ -82,10 +82,6 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
      */
     private static final long serialVersionUID = 1L;
 
-    /**
-     * RowKey of current hilite
-     */
-    private RowKey m_currentHilite;
 
     /**
      * position access
@@ -148,7 +144,6 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
      */
     public void clearAllHilites() {
         m_hiliteQueue.clear();
-        m_currentHilite = null;
         updateStatus();
     }
 
@@ -159,9 +154,6 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
      */
     public void clearHilites(final Set<RowKey> hilites) {
         m_hiliteQueue.removeAll(hilites);
-        if (hilites.contains(m_currentHilite)) {
-            m_currentHilite = null;
-        }
         updateStatus();
     }
 
@@ -182,10 +174,15 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
         m_serverStatus = new JLabel("Server is currently not running");
         final JButton serverStart = new JButton("Start Server");
         final JButton serverStop = new JButton("Stop Server");
+        final JButton clearHilites = new JButton("Clear Table");
+        final JButton allHilites = new JButton("Select All");
 
         // init action listeners
         startServer(serverStart);
         stopServer(serverStop);
+        clearHilites(clearHilites);
+        allHilites(allHilites);
+
 
         if (m_access == null) {
             throw new IllegalArgumentException("Please reconfigure node");
@@ -206,6 +203,8 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
 
         serverStatusPanel.add(serverStart);
         serverStatusPanel.add(serverStop);
+        serverStatusPanel.add(clearHilites);
+        serverStatusPanel.add(allHilites);
         serverStatusPanel.add(m_serverStatus);
         serverStatusPanel.add(new JLabel(" "));
 
@@ -237,6 +236,7 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
             public void actionPerformed(final ActionEvent e) {
                 //if (m_server.isShutDown()) {
                     m_server.startUp();
+                    m_table.clearSelection();
 
                     if (!m_server.isShutDown()) {
                         m_serverStatus.setText("Server is running on port " + m_server.getPort());
@@ -262,6 +262,7 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
         btn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(final ActionEvent e) {
+                m_table.clearSelection();
                 if (!m_server.isShutDown()) {
                     m_server.shutDown();
                     if (m_server.isShutDown()) {
@@ -269,6 +270,36 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
                         updateUI();
                     }
                 }
+            }
+        });
+    }
+
+    /**
+     * Action Listener for stop button
+     *
+     * @param btn
+     */
+    private void clearHilites(final JButton btn) {
+        btn.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                m_table.clearSelection();
+                updateUI();
+            }
+        });
+    }
+
+    /**
+     * Action Listener for stop button
+     *
+     * @param btn
+     */
+    private void allHilites(final JButton btn) {
+        btn.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                m_table.selectAll();
+                updateUI();
             }
         });
     }
@@ -356,19 +387,19 @@ class HiliteListSelectionListener implements ListSelectionListener
     }
 
     private void doHilite() {
-        System.out.println("Removing:");
         for(Integer row : removeSet) {
             RowKey key = new RowKey((String)m_table.getModel().getValueAt(row.intValue(), 0));
-            m_client.sendPositionChangedCommand(m_access.getPositionRowKey(key), true, true);
-            System.out.print(" " + row.intValue());
-
+            m_client.sendIlastikHilite(m_access.getIdRowKey(key), true, true);
         }
-        System.out.println("\nAdding:");
+        RowKey lastKey = null;
         for(Integer row : addSet) {
             RowKey key = new RowKey((String)m_table.getModel().getValueAt(row.intValue(), 0));
-            m_client.sendPositionChangedCommand(m_access.getPositionRowKey(key), true, false);
-            System.out.print(" " + row.intValue());
+            m_client.sendIlastikHilite(m_access.getIdRowKey(key), true, false);
+            lastKey = key;
         }
-        System.out.println("\n");
+        if(lastKey != null) {
+            m_client.sendPositionChangedCommand(m_access.getPositionRowKey(lastKey));
+        }
+
     }
 }

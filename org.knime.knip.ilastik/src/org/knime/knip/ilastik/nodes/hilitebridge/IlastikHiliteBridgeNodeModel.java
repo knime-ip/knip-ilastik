@@ -154,6 +154,8 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
      */
     final Map<RowKey, double[]> m_positionMap = new HashMap<RowKey, double[]>();
 
+    final Map<RowKey, int[]> m_idMap = new HashMap<RowKey, int[]>();
+
     /**
      *
      */
@@ -241,6 +243,7 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
         for (final DataRow row : inData[0]) {
             final double[] pos = new double[6];
+            final int[] timeId = new int[2];
 
 
             if (xCol != -1) {
@@ -261,21 +264,23 @@ public class IlastikHiliteBridgeNodeModel extends NodeModel {
 
             if (tCol != -1) {
                 pos[4] = ((DoubleValue)row.getCell(tCol)).getDoubleValue();
+                timeId[0] = (int)((DoubleValue)row.getCell(tCol)).getDoubleValue();
             }
 
             if(iIdCol != -1) {
                 pos[5] = ((DoubleValue)row.getCell(iIdCol)).getDoubleValue();
+                timeId[1] = (int)((DoubleValue)row.getCell(iIdCol)).getDoubleValue();
             }
 
             if (oIdCol != -1) {
                 Double oId = ((DoubleValue)row.getCell(oIdCol)).getDoubleValue();
                 m_objectIdMap.put(row.getKey(), oId);
             }
-
+            m_idMap.put(row.getKey(), timeId);
             m_positionMap.put(row.getKey(), pos);
         }
 
-        return new MapPositionAccess(m_positionMap);
+        return new MapPositionAccess(m_positionMap, m_idMap);
     }
 
     /**

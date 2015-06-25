@@ -95,16 +95,9 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
      * {@inheritDoc}
      */
     @Override
-    public void sendPositionChangedCommand(final double[] pos, final boolean affectOthers, final boolean clear) {
-
-        // create connection
-        establishConnection();
-
+    public void sendPositionChangedCommand(final double[] pos) {
         // Build json document
         String command = "setviewerposition";
-        if (clear) {
-            command = "unsetviewerposition";
-        }
 
         final JsonObjectBuilder obj = Json.createObjectBuilder().add("command", command);
 
@@ -115,9 +108,23 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
         obj.add("c", pos[3]);
         obj.add("t", pos[4]);
         obj.add("name", "knime");
-        obj.add("keep", affectOthers);
 
         // write object to stream
+        writeJSONObjectToStream(obj.build());
+    }
+
+    @Override
+    public void sendIlastikHilite(final int[] timeId, final boolean keep, final boolean clear)
+    {
+        String command = "ilastikhilite";
+        String method = "hilite";
+        if(clear) {
+            method = "unhilite";
+        }
+
+        final JsonObjectBuilder obj = Json.createObjectBuilder().add("command", command);
+        obj.add("t", timeId[0]).add("oid", timeId[1]).add("keep", keep).add("method", method);
+
         writeJSONObjectToStream(obj.build());
     }
 
@@ -129,6 +136,8 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
      */
     private void writeJSONObjectToStream(final JsonObject obj) {
         try {
+            establishConnection();
+
             // get stream
             OutputStream outputStream = m_socket.getOutputStream();
 
@@ -142,6 +151,16 @@ public class DefaultIlastikHiliteClient implements IlastikHiliteClient {
             writer.close();
         } catch (final IOException e) {
             System.out.println("No socket available");
+        } catch (final NullPointerException e) {
+            System.out.println("Server not started");
+        } finally {
+            try {
+                m_socket.close();
+            } catch(final IOException e) {
+
+            } catch(final NullPointerException e) {
+
+            }
         }
     }
 

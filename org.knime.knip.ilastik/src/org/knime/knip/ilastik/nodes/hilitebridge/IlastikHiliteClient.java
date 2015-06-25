@@ -59,10 +59,17 @@ public interface IlastikHiliteClient {
      * Send changed position
      *
      * @param pos
-     * @param affectOthers true if the current hilite should affect the other hilited objects ( e.g. removing them )
+     */
+    void sendPositionChangedCommand(double[] pos);
+
+    /**
+     * Send changed position
+     *
+     * @param timeId
+     * @param keep true if the current hilite should affect the other hilited objects ( e.g. removing them )
      * @param clear true if this is a unset viewer position command
      */
-    void sendPositionChangedCommand(double[] pos, boolean affectOthers, boolean clear);
+    void sendIlastikHilite(int[] timeId, boolean keep, boolean clear);
 
 
     /**

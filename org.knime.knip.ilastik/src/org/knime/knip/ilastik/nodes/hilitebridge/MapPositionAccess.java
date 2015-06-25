@@ -61,12 +61,16 @@ import org.knime.core.data.RowKey;
 public class MapPositionAccess implements PositionAccess {
 
     private Map<RowKey, double[]> map;
+    private Map<RowKey, int[]> idMap;
 
     /**
      * @param _map
+     * @param _idMap
      */
-    public MapPositionAccess(final Map<RowKey, double[]> _map) {
+    public MapPositionAccess(final Map<RowKey, double[]> _map,
+                             final Map<RowKey, int[]> _idMap) {
         this.map = _map;
+        this.idMap = _idMap;
     }
 
     /**
@@ -75,6 +79,14 @@ public class MapPositionAccess implements PositionAccess {
     @Override
     public double[] getPositionRowKey(final RowKey key) {
         return map.get(key);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int[] getIdRowKey(final RowKey key) {
+        return idMap.get(key);
     }
 
 }

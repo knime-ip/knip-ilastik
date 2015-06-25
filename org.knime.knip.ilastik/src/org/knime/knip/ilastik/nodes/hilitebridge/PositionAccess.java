@@ -63,4 +63,10 @@ public interface PositionAccess {
      *      Position
      */
     double[] getPositionRowKey(final RowKey objId);
+
+    /**
+     * @param key
+     * @return time and id
+     */
+    int[] getIdRowKey(final RowKey key);
 }
