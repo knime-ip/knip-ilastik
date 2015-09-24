@@ -1,7 +1,7 @@
 /*
  * ------------------------------------------------------------------------
  *
- *  Copyright (C) 2003 - 2014
+ *  Copyright (C) 2003 - 2015
  *  University of Konstanz, Germany and
  *  KNIME GmbH, Konstanz, Germany
  *  Website: http://www.knime.org; Email: contact@knime.org
@@ -45,7 +45,6 @@
  *  when such Node is propagated with or for interoperation with KNIME.
  * ---------------------------------------------------------------------
  *
- * Created on Oct 2, 2014 by andreasgraumann
  */
 package org.knime.knip.ilastik.nodes.headless;
 
@@ -55,8 +54,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-
-import net.imglib2.meta.ImgPlus;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
@@ -79,9 +76,13 @@ import org.knime.knip.base.data.img.ImgPlusCell;
 import org.knime.knip.base.data.img.ImgPlusCellFactory;
 import org.knime.knip.base.data.img.ImgPlusValue;
 import org.knime.knip.io.ScifioImgSource;
-import org.knime.knip.io.nodes.imgwriter.ImgWriter;
+import org.knime.knip.io.nodes.imgwriter2.ImgWriter2;
+
+import net.imagej.ImgPlus;
 
 /**
+ *
+ * Headless execution of an Ilastik project in a KNIME node.
  *
  * @author Andreas Graumann, University of Konstanz
  */
@@ -107,7 +108,6 @@ public class IlastikHeadlessNodeModel extends NodeModel {
 
     @Override
     protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
-
         return new DataTableSpec[]{new DataTableSpec(createImgSpec())};
     }
 
@@ -118,6 +118,7 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         return new DataColumnSpecCreator("Result Image Image", ImgPlusCell.TYPE).createSpec();
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
             throws Exception {
@@ -156,9 +157,11 @@ public class IlastikHeadlessNodeModel extends NodeModel {
             }
 
             // Image Writer
-            ImgWriter iW = new ImgWriter();
+            ImgWriter2 iW = new ImgWriter2();
+
+            // write image to temp folder as input for ilastik
             iW.writeImage(img.getImgPlus(), tmpDirPath + next.getKey().getString() + ".tif",
-                          "Tagged Image File Format (tif)", "Uncompressed", map);
+                          "TIFF (tif)", "Uncompressed", map);
         }
 
         // run ilastik and process images
@@ -176,7 +179,8 @@ public class IlastikHeadlessNodeModel extends NodeModel {
             imgContainer.addRowToTable(new DefaultRow("Row " + idx++, cell));
         }
         imgContainer.close();
-        // delte tmp directory
+
+        // delete tmp directory
         tmpDir.delete();
 
         // return result images (same spec as input??)
@@ -248,7 +252,15 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         }
     }
 
-    // stream copy method
+    /**
+     * Copy stream
+     *
+     * @param in
+     *          input stream
+     * @param out
+     *          output stream
+     * @throws IOException
+     */
     static void copy(final InputStream in, final OutputStream out) throws IOException {
         while (true) {
             int c = in.read();
@@ -260,14 +272,14 @@ public class IlastikHeadlessNodeModel extends NodeModel {
     }
 
     /**
-     * @return
+     * @return SettingsModelString for path to ilastik project file
      */
     public static SettingsModelString createPathToIlastikProjectFileModel() {
         return new SettingsModelString("path_to_ilastik_project_file", "");
     }
 
     /**
-     * @return
+     * @return SettingsModelString for path to ilastik installation path
      */
     public static SettingsModelString createPathToIlastikInstallationModel() {
         return new SettingsModelString("path_to_ilastik_installation", "");
@@ -305,7 +317,7 @@ public class IlastikHeadlessNodeModel extends NodeModel {
      */
     @Override
     protected void reset() {
-
+        // nothin to do here
     }
 
     /**

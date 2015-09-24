@@ -82,5 +82,6 @@ public class IlastikHeadlessNodeDialog extends DefaultNodeSettingsPane {
         addDialogComponent(new DialogComponentFileChooser(
                 IlastikHeadlessNodeModel.createPathToIlastikProjectFileModel(), "test2", ".ilp"));
         this.closeCurrentGroup();
+
     }
 }

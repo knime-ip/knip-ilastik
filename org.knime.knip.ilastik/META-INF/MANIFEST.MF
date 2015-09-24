@@ -8,14 +8,17 @@ Bundle-ClassPath: knipilastik.jar,
  lib/javax.json-api-1.0.jar,
  lib/javax.json-1.0.3.jar
 Bundle-Vendor: Chair for Bioinformatics and Information Mining
-Require-Bundle: org.knime.base;bundle-version="[2.9.0,3.0.0)",
- org.knime.workbench.repository;bundle-version="[2.9.0,3.0.0)",
+Require-Bundle: org.knime.base;bundle-version="3.0.0",
+ org.knime.workbench.repository;bundle-version="3.0.0",
  org.eclipse.core.runtime,
  org.eclipse.ui,
  org.knime.knip.base;bundle-version="1.1.2",
- org.knime.knip.core;bundle-version="1.1.2"
-Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+ org.knime.knip.core;bundle-version="1.1.2",
+ imglib2,
+ org.knime.core,
+ org.knime.knip.io,
+ scijava-cache;bundle-version="0.1.0",
+ imagej-common;bundle-version="0.18.0",
+ scifio;bundle-version="0.25.0"
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
-Import-Package: org.knime.knip.io,
- org.knime.knip.io.nodes.imgreader,
- org.knime.knip.io.nodes.imgwriter
