@@ -111,6 +111,9 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      */
     private BufferedDataTable m_data;
 
+//    private static final NodeLogger LOGGER = NodeLogger
+//            .getLogger(IlastikHeadlessNodeModel.class);
+
     /**
      * @param nrInDataPorts
      * @param nrOutDataPorts
@@ -317,9 +320,11 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     static void copy(final InputStream in, final OutputStream out) throws IOException {
         while (true) {
             int c = in.read();
+
             if (c == -1) {
                 break;
             }
+
             out.write((char)c);
         }
     }
