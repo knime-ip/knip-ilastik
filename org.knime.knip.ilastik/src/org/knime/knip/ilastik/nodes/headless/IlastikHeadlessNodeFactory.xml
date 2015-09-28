@@ -6,7 +6,7 @@
 	</shortDescription>
 	<fullDescription>
 		<intro>
-			This node executes <a href="www.ilastik.org">Ilastik</a> and 
+			This node executes <a href="http://www.ilastik.org">Ilastik</a> and 
 			process the given input images headless using a provided 
 			Ilastik pixel classification project file.
 			

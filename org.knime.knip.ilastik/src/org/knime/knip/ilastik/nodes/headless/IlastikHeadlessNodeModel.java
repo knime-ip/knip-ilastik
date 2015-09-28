@@ -48,10 +48,12 @@
  */
 package org.knime.knip.ilastik.nodes.headless;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -72,6 +74,7 @@ import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
@@ -111,8 +114,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      */
     private BufferedDataTable m_data;
 
-//    private static final NodeLogger LOGGER = NodeLogger
-//            .getLogger(IlastikHeadlessNodeModel.class);
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(IlastikHeadlessNodeModel.class);
 
     /**
      * @param nrInDataPorts
@@ -194,7 +196,6 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
         HashMap<String, RowKey> mapImgRowKey = new HashMap<String, RowKey>();
 
-
         // iterate over all input images and copy them to the tmp directory
         while (it.hasNext()) {
             DataRow next = it.next();
@@ -226,22 +227,26 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                           "Uncompressed", map);
         }
 
-        // run ilastik and process images
-        runIlastik(tmpDirPath, files);
+        try {
+            // run ilastik and process images
+            runIlastik(tmpDirPath, files);
 
-        HashMap<RowKey, DataCell[]> dataCells = readResultImages(exec, mapImgRowKey);
+            HashMap<RowKey, DataCell[]> dataCells = readResultImages(exec, mapImgRowKey);
 
-        final ColumnRearranger rearranger = new ColumnRearranger(inData[0].getDataTableSpec());
-        rearranger.append(createCellFactory(inData[0].getDataTableSpec(), dataCells));
+            final ColumnRearranger rearranger = new ColumnRearranger(inData[0].getDataTableSpec());
+            rearranger.append(createCellFactory(inData[0].getDataTableSpec(), dataCells));
 
-        final BufferedDataTable[] res =
-                new BufferedDataTable[]{exec.createColumnRearrangeTable(inData[0], rearranger, exec)};
-        m_data = res[0];
+            final BufferedDataTable[] res =
+                    new BufferedDataTable[]{exec.createColumnRearrangeTable(inData[0], rearranger, exec)};
+            m_data = res[0];
 
-        // delete tmp directory
-        tmpDir.delete();
-
-        return res;
+            cleanUp(tmpDir);
+            return res;
+        } catch (Exception e) {
+            LOGGER.error("Error when executing Ilastik. Please check the dimension of the input images.");
+            cleanUp(tmpDir);
+            return inData;
+        }
     }
 
     /**
@@ -277,6 +282,16 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     }
 
     /**
+     * Delete temporary directory
+     *
+     * @param tmpDir
+     */
+    private void cleanUp(final File tmpDir) {
+        // delete tmp directory
+        tmpDir.delete();
+    }
+
+    /**
      * @throws IOException
      * @throws InterruptedException
      */
@@ -299,8 +314,8 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         // run ilastik
         Process p = pB.start();
 
-        // copy ilastik output to system.out
-        copy(p.getInputStream(), System.out);
+        // write ilastik output to knime console
+        writeToKnimeConsole(p.getInputStream());
 
         // 0 indicates successful execution
         if (p.waitFor() == 0) {
@@ -311,21 +326,16 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     }
 
     /**
-     * Copy stream
+     * Write stream to knime console
      *
      * @param in input stream
-     * @param out output stream
      * @throws IOException
      */
-    static void copy(final InputStream in, final OutputStream out) throws IOException {
-        while (true) {
-            int c = in.read();
-
-            if (c == -1) {
-                break;
-            }
-
-            out.write((char)c);
+    static void writeToKnimeConsole(final InputStream in) throws IOException {
+        BufferedReader bis = new BufferedReader(new InputStreamReader(in, Charset.defaultCharset()));
+        String line;
+        while ((line = bis.readLine()) != null) {
+            LOGGER.info(line);
         }
     }
 
