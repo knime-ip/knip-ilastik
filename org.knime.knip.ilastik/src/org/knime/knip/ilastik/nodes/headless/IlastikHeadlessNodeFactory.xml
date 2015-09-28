@@ -1,27 +1,31 @@
-<!-- Copyright (c) 2010 IBM Corporation and others. All rights reserved. 
-	This program and the accompanying materials are made available under the 
-	terms of the Eclipse Public License v1.0 which accompanies this distribution, 
-	and is available at http://www.eclipse.org/legal/epl-v10.html Contributors: 
-	IBM Corporation - initial API and implementation -->
 <!DOCTYPE knimeNode PUBLIC "-//UNIKN//DTD KNIME Node 2.0//EN" "http://www.knime.org/Node.dtd">
 <knimeNode icon="ilastik.png" type="Manipulator">
-	<name>Ilastik Headless Executor</name>
+	<name>Ilastik Headless (Pixel classification)</name>
 	<shortDescription>
-		tbd.
+		Headless execution of a pixel classification ilastik project.
 	</shortDescription>
-
 	<fullDescription>
 		<intro>
-			tbd
+			This node executes <a href="www.ilastik.org">Ilastik</a> and 
+			process the given input images headless using a provided 
+			Ilastik pixel classification project file.
+			
+			Input images MUST have the sime dimension as in the learned Ilastik 
+			project, otherwise an Ilastik error may occur. 
+			Resulting images will have one channel for each class defined in 
+			ilastik representing the probability for each pixel to be part of the corresponding class (0-1).
+			
+			Please make sure the right path to the Ilastik installation is 
+			given in "Preferences -> KNIME -> Image Processing Plugin -> Ilastik -> Path to Ilastik installation".
 		</intro>
+		<option name="Path to Ilastik project file">The ilastik project to be executed.</option>
+		<option name="Column Selection">Column containing the images to be processed.</option>
 	</fullDescription>
-
 	<ports>
-		<inPort index="0" name="Images">Images</inPort>
-		<outPort index="0" name="Images produced by Ilastik">CellProfiler Images</outPort>
+		<inPort index="0" name="Images">Input Images</inPort>
+		<outPort index="0" name="Images produced by Ilastik">Ilastik images</outPort>
 	</ports>
-	
-		<views>
+	<views>
 		<view name="Table Cell View" index="0">Table Cell View</view>
 	</views>
 </knimeNode>
