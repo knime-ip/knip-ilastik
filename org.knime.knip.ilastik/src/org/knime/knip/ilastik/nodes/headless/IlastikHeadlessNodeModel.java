@@ -53,17 +53,21 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.RowKey;
+import org.knime.core.data.container.CellFactory;
 import org.knime.core.data.container.CloseableRowIterator;
-import org.knime.core.data.def.DefaultRow;
-import org.knime.core.node.BufferedDataContainer;
+import org.knime.core.data.container.ColumnRearranger;
 import org.knime.core.node.BufferedDataTable;
+import org.knime.core.node.BufferedDataTableHolder;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
@@ -75,28 +79,37 @@ import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.knip.base.data.img.ImgPlusCell;
 import org.knime.knip.base.data.img.ImgPlusCellFactory;
 import org.knime.knip.base.data.img.ImgPlusValue;
+import org.knime.knip.base.node.NodeUtils;
+import org.knime.knip.ilastik.nodes.IlastikPreferencePage;
 import org.knime.knip.io.ScifioImgSource;
 import org.knime.knip.io.nodes.imgwriter2.ImgWriter2;
 
 import net.imagej.ImgPlus;
+import net.imglib2.type.numeric.RealType;
 
 /**
  *
  * Headless execution of an Ilastik project in a KNIME node.
  *
  * @author Andreas Graumann, University of Konstanz
+ * @param <T>
  */
-public class IlastikHeadlessNodeModel extends NodeModel {
-
-    /**
-     * Path to ilastik installation
-     */
-    private SettingsModelString m_pathToIlastikInstallationModel = createPathToIlastikInstallationModel();
+public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel implements BufferedDataTableHolder {
 
     /**
      * Path to ilastik project file
      */
     private SettingsModelString m_pathToIlastikProjectFileModel = createPathToIlastikProjectFileModel();
+
+    /**
+     * Source image column
+     */
+    private final SettingsModelString m_srcImgCol = createImgColModel();
+
+    /**
+     * data table for table cell view
+     */
+    private BufferedDataTable m_data;
 
     /**
      * @param nrInDataPorts
@@ -106,22 +119,64 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         super(nrInDataPorts, nrOutDataPorts);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
-        return new DataTableSpec[]{new DataTableSpec(createImgSpec())};
+
+        final ColumnRearranger rearranger = new ColumnRearranger(inSpecs[0]);
+        rearranger.append(createCellFactory(inSpecs[0], null));
+
+        return new DataTableSpec[]{rearranger.createSpec()};
+    }
+
+    /**
+     *
+     * @param inSpec
+     * @return
+     * @throws InvalidSettingsException
+     */
+    private CellFactory createCellFactory(final DataTableSpec inSpec, final HashMap<RowKey, DataCell[]> dataCells)
+            throws InvalidSettingsException {
+
+        return new CellFactory() {
+
+            HashMap<RowKey, DataCell[]> m_dataCells = dataCells;
+
+            @Override
+            public DataCell[] getCells(final DataRow row) {
+                return m_dataCells.get(row.getKey());
+            }
+
+            @Override
+            public DataColumnSpec[] getColumnSpecs() {
+                return new DataColumnSpec[]{createImgSpec()};
+            }
+
+            @Override
+            public void setProgress(final int curRowNr, final int rowCount, final RowKey lastKey,
+                                    final ExecutionMonitor exec) {
+                exec.setProgress((double)curRowNr / rowCount);
+            }
+        };
     }
 
     /**
      * @return
      */
     private DataColumnSpec createImgSpec() {
-        return new DataColumnSpecCreator("Result Image Image", ImgPlusCell.TYPE).createSpec();
+        return new DataColumnSpecCreator("Resulting Image", ImgPlusCell.TYPE).createSpec();
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
             throws Exception {
+
+        m_data = inData[0];
+
+        // get index of image column
+        int idx = getImgColIdx(inData[0].getSpec());
 
         // create tmp directory
         String tmpDirPath = System.getProperty("java.io.tmpdir") + "/ilastik" + System.currentTimeMillis() + "/";
@@ -131,24 +186,28 @@ public class IlastikHeadlessNodeModel extends NodeModel {
         // list to store all input file names
         List<String> files = new ArrayList<String>();
 
-        // list to store all output file path names
-        List<String> outFiles = new ArrayList<String>();
-
         // copy images to tmp directory
         final CloseableRowIterator it = inData[0].iterator();
+
+        HashMap<String, RowKey> mapImgRowKey = new HashMap<String, RowKey>();
+
 
         // iterate over all input images and copy them to the tmp directory
         while (it.hasNext()) {
             DataRow next = it.next();
 
             // get next image
-            final ImgPlusValue<?> img = (ImgPlusValue<?>)next.getCell(0);
+            final ImgPlusValue<?> img = (ImgPlusValue<?>)next.getCell(idx);
+
+            String inFile = tmpDirPath + next.getKey().getString() + ".tif";
 
             // store in-image name in list
-            files.add(tmpDirPath + next.getKey().getString() + ".tif");
+            files.add(inFile);
 
+            String outFile = tmpDirPath + next.getKey().getString();
             // store out-image name in iterable
-            outFiles.add(tmpDirPath + next.getKey().getString());
+            // store in map
+            mapImgRowKey.put(outFile, next.getKey());
 
             // map for dimensions
             final int[] map = new int[img.getDimensions().length];
@@ -160,31 +219,26 @@ public class IlastikHeadlessNodeModel extends NodeModel {
             ImgWriter2 iW = new ImgWriter2();
 
             // write image to temp folder as input for ilastik
-            iW.writeImage(img.getImgPlus(), tmpDirPath + next.getKey().getString() + ".tif",
-                          "TIFF (tif)", "Uncompressed", map);
+            iW.writeImage(img.getImgPlus(), tmpDirPath + next.getKey().getString() + ".tif", "TIFF (tif)",
+                          "Uncompressed", map);
         }
 
         // run ilastik and process images
         runIlastik(tmpDirPath, files);
 
-        List<ImgPlus<?>> images = readResultImages(exec, outFiles);
+        HashMap<RowKey, DataCell[]> dataCells = readResultImages(exec, mapImgRowKey);
 
-        BufferedDataContainer imgContainer = exec.createDataContainer(new DataTableSpec(createImgSpec()));
+        final ColumnRearranger rearranger = new ColumnRearranger(inData[0].getDataTableSpec());
+        rearranger.append(createCellFactory(inData[0].getDataTableSpec(), dataCells));
 
-        int idx = 0;
-        for (ImgPlus img : images) {
-
-            DataCell[] cell = new DataCell[1];
-            cell[0] = new ImgPlusCellFactory(exec).createCell(img);
-            imgContainer.addRowToTable(new DefaultRow("Row " + idx++, cell));
-        }
-        imgContainer.close();
+        final BufferedDataTable[] res =
+                new BufferedDataTable[]{exec.createColumnRearrangeTable(inData[0], rearranger, exec)};
+        m_data = res[0];
 
         // delete tmp directory
         tmpDir.delete();
 
-        // return result images (same spec as input??)
-        return new BufferedDataTable[]{imgContainer.getTable()};
+        return res;
     }
 
     /**
@@ -192,44 +246,45 @@ public class IlastikHeadlessNodeModel extends NodeModel {
      * Read resulting images every channel is a probability map for one labeling
      *
      * @param exec
-     * @param outFiles
+     *
+     * @param exec
+     * @param mapImgRowKey
      * @return
      */
-    private List<ImgPlus<?>> readResultImages(final ExecutionContext exec, final List<String> outFiles) {
+    @SuppressWarnings("unchecked")
+    private HashMap<RowKey, DataCell[]> readResultImages(final ExecutionContext exec,
+                                                         final HashMap<String, RowKey> mapImgRowKey) {
 
-        List<ImgPlus<?>> images = new ArrayList<ImgPlus<?>>();
+        HashMap<RowKey, DataCell[]> dataCells = new HashMap<RowKey, DataCell[]>();
         final ScifioImgSource imgOpener = new ScifioImgSource();
-        for (String file : outFiles) {
+
+        for (Entry<String, RowKey> e : mapImgRowKey.entrySet()) {
             try {
-                images.add(imgOpener.getImg(file, 0));
-            } catch (Exception e) {
-                throw new IllegalStateException("Can't read image " + file);
+                ImgPlus<T> img = (ImgPlus<T>)imgOpener.getImg(e.getKey(), 0);
+                DataCell[] cells = new DataCell[1];
+                cells[0] = new ImgPlusCellFactory(exec).createCell(img);
+                dataCells.put(e.getValue(), cells);
+            } catch (Exception p) {
+                throw new IllegalStateException("Can't read image " + e.getKey());
             }
         }
         imgOpener.close();
 
-        return images;
+        return dataCells;
     }
 
     /**
      * @throws IOException
      * @throws InterruptedException
      */
-    private boolean runIlastik(final String tmpDirPath, final List<String> inFiles) throws IOException,
-            InterruptedException {
+    private boolean runIlastik(final String tmpDirPath, final List<String> inFiles)
+            throws IOException, InterruptedException {
 
-        String macExtension = "";
-
-        // which OS are we working on?
-        String os = System.getProperty("os.name");
-
-        // On Mac OS X we must call the program within the app to be able to add arguments
-        if (os.contains("OS")) {
-            macExtension = "/Contents/MacOS/ilastik";
-        }
+        // get path of ilastik
+        final String path = IlastikPreferencePage.getPath();
 
         // DO NOT TOUCH THIS ORDER!
-        inFiles.add(0, m_pathToIlastikInstallationModel.getStringValue().concat(macExtension));
+        inFiles.add(0, path);
         inFiles.add(1, "--headless");
         inFiles.add(2, "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()));
         inFiles.add(3, "--output_format=tif");
@@ -255,10 +310,8 @@ public class IlastikHeadlessNodeModel extends NodeModel {
     /**
      * Copy stream
      *
-     * @param in
-     *          input stream
-     * @param out
-     *          output stream
+     * @param in input stream
+     * @param out output stream
      * @throws IOException
      */
     static void copy(final InputStream in, final OutputStream out) throws IOException {
@@ -272,6 +325,27 @@ public class IlastikHeadlessNodeModel extends NodeModel {
     }
 
     /**
+     *
+     * @param inSpec
+     * @return
+     * @throws InvalidSettingsException
+     */
+    private int getImgColIdx(final DataTableSpec inSpec) throws InvalidSettingsException {
+        // check settings for the original image, the full picture of
+        // the cells.
+        int imgColIdx = inSpec.findColumnIndex(m_srcImgCol.getStringValue());
+
+        if (imgColIdx == -1) {
+            if ((imgColIdx = NodeUtils.autoOptionalColumnSelection(inSpec, m_srcImgCol, ImgPlusValue.class)) >= 0) {
+                setWarningMessage("Auto-configure Image Column: " + m_srcImgCol.getStringValue());
+            } else {
+                throw new InvalidSettingsException("No column selected!");
+            }
+        }
+        return imgColIdx;
+    }
+
+    /**
      * @return SettingsModelString for path to ilastik project file
      */
     public static SettingsModelString createPathToIlastikProjectFileModel() {
@@ -279,10 +353,11 @@ public class IlastikHeadlessNodeModel extends NodeModel {
     }
 
     /**
-     * @return SettingsModelString for path to ilastik installation path
+     *
+     * @return SettingsModelString for source image column
      */
-    public static SettingsModelString createPathToIlastikInstallationModel() {
-        return new SettingsModelString("path_to_ilastik_installation", "");
+    public static SettingsModelString createImgColModel() {
+        return new SettingsModelString("src_image", "");
     }
 
     /**
@@ -290,8 +365,8 @@ public class IlastikHeadlessNodeModel extends NodeModel {
      */
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
-        m_pathToIlastikInstallationModel.saveSettingsTo(settings);
         m_pathToIlastikProjectFileModel.saveSettingsTo(settings);
+        m_srcImgCol.saveSettingsTo(settings);
     }
 
     /**
@@ -299,8 +374,8 @@ public class IlastikHeadlessNodeModel extends NodeModel {
      */
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_pathToIlastikInstallationModel.validateSettings(settings);
         m_pathToIlastikProjectFileModel.validateSettings(settings);
+        m_srcImgCol.validateSettings(settings);
     }
 
     /**
@@ -308,8 +383,8 @@ public class IlastikHeadlessNodeModel extends NodeModel {
      */
     @Override
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_pathToIlastikInstallationModel.loadSettingsFrom(settings);
         m_pathToIlastikProjectFileModel.loadSettingsFrom(settings);
+        m_srcImgCol.loadSettingsFrom(settings);
     }
 
     /**
@@ -324,8 +399,8 @@ public class IlastikHeadlessNodeModel extends NodeModel {
      * {@inheritDoc}
      */
     @Override
-    protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec) throws IOException,
-            CanceledExecutionException {
+    protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
+            throws IOException, CanceledExecutionException {
         // nothing to do here
     }
 
@@ -333,9 +408,26 @@ public class IlastikHeadlessNodeModel extends NodeModel {
      * {@inheritDoc}
      */
     @Override
-    protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec) throws IOException,
-            CanceledExecutionException {
+    protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec)
+            throws IOException, CanceledExecutionException {
         // nothing to do here
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public BufferedDataTable[] getInternalTables() {
+        return new BufferedDataTable[]{m_data};
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setInternalTables(final BufferedDataTable[] tables) {
+        m_data = tables[0];
+
     }
 
 }

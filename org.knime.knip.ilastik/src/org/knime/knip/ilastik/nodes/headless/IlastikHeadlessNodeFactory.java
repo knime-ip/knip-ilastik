@@ -52,19 +52,23 @@ package org.knime.knip.ilastik.nodes.headless;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
+import org.knime.knip.base.nodes.view.TableCellViewNodeView;
+
+import net.imglib2.type.numeric.RealType;
 
 /**
  *
  * @author Andreas Graumann, University of Konstanz
+ * @param <T>
  */
-public class IlastikHeadlessNodeFactory extends NodeFactory<IlastikHeadlessNodeModel> {
+public class IlastikHeadlessNodeFactory<T extends RealType<T>> extends NodeFactory<IlastikHeadlessNodeModel<T>> {
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public IlastikHeadlessNodeModel createNodeModel() {
-        return new IlastikHeadlessNodeModel(1, 1);
+    public IlastikHeadlessNodeModel<T> createNodeModel() {
+        return new IlastikHeadlessNodeModel<T>(1, 1);
     }
 
     /**
@@ -72,15 +76,15 @@ public class IlastikHeadlessNodeFactory extends NodeFactory<IlastikHeadlessNodeM
      */
     @Override
     protected int getNrNodeViews() {
-        return 0;
+        return 1;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public NodeView<IlastikHeadlessNodeModel> createNodeView(final int viewIndex, final IlastikHeadlessNodeModel nodeModel) {
-        return null;
+    public NodeView<IlastikHeadlessNodeModel<T>> createNodeView(final int viewIndex, final IlastikHeadlessNodeModel<T> nodeModel) {
+        return new TableCellViewNodeView<IlastikHeadlessNodeModel<T>>(nodeModel);
     }
 
     /**

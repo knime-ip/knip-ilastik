@@ -20,4 +20,8 @@
 		<inPort index="0" name="Images">Images</inPort>
 		<outPort index="0" name="Images produced by Ilastik">CellProfiler Images</outPort>
 	</ports>
+	
+		<views>
+		<view name="Table Cell View" index="0">Table Cell View</view>
+	</views>
 </knimeNode>
