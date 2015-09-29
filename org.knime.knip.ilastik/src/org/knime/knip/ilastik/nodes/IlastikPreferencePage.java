@@ -54,7 +54,7 @@ import java.io.File;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.InstanceScope;
-import org.eclipse.jface.preference.DirectoryFieldEditor;
+import org.eclipse.jface.preference.FileFieldEditor;
 import org.eclipse.jface.preference.PreferencePage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.ScrolledComposite;
@@ -81,7 +81,7 @@ public class IlastikPreferencePage extends PreferencePage implements IWorkbenchP
 
     private Composite m_container;
 
-    private DirectoryFieldEditor m_pathEditor;
+    private FileFieldEditor m_pathEditor;
 
     private static final NodeLogger LOGGER = NodeLogger
             .getLogger(IlastikPreferencePage.class);
@@ -102,7 +102,7 @@ public class IlastikPreferencePage extends PreferencePage implements IWorkbenchP
         m_sc = new ScrolledComposite(parent, SWT.H_SCROLL | SWT.V_SCROLL);
         m_container = new Composite(m_sc, SWT.NONE);
         m_container.setLayout(new GridLayout());
-        m_pathEditor = new DirectoryFieldEditor("org.knime.knip.ilastik.nodes",
+        m_pathEditor = new FileFieldEditor("org.knime.knip.ilastik.nodes",
                 "Path to Ilastik Installation", m_container);
         m_pathEditor.setStringValue(Platform.getPreferencesService().getString(
                 "org.knime.knip.ilastik.nodes", "path", DEFAULT_PATH, null));
