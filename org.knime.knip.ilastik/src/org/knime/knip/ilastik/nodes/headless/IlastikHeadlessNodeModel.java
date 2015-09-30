@@ -302,6 +302,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         final String path = IlastikPreferencePage.getPath();
 
         // DO NOT TOUCH THIS ORDER!
+//        inFiles.add(0, "/bin/bash");
         inFiles.add(0, path);
         inFiles.add(1, "--headless");
         inFiles.add(2, "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()));

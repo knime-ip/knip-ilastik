@@ -49,8 +49,6 @@
  */
 package org.knime.knip.ilastik.nodes;
 
-import java.io.File;
-
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.InstanceScope;
@@ -149,34 +147,34 @@ public class IlastikPreferencePage extends PreferencePage implements IWorkbenchP
      */
     @Override
     protected void performApply() {
-        if (!new File(m_pathEditor.getStringValue()).exists()) {
-            throw new IllegalArgumentException(
-                    "Path to CellProfiler does not exist! Please select the installation directory of CellProfiler.");
-        }
-
-        if (!new File(m_pathEditor.getStringValue()).isDirectory()) {
-            throw new IllegalArgumentException(
-                    "Path to CellProfiler is not a directory! Please select the installation directory of CellProfiler.");
-        }
+//        if (!new File(m_pathEditor.getStringValue()).exists()) {
+//            throw new IllegalArgumentException(
+//                    "Path to CellProfiler does not exist! Please select the installation directory of CellProfiler.");
+//        }
+//
+//        if (!new File(m_pathEditor.getStringValue()).isDirectory()) {
+//            throw new IllegalArgumentException(
+//                    "Path to CellProfiler is not a directory! Please select the installation directory of CellProfiler.");
+//        }
 
         String path = m_pathEditor.getStringValue();
 
-        final String OS = System.getProperty("os.name", "generic");
-        if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
-            if (!path.endsWith("/")) {
-                path += "/";
-            }
-        } else if (OS.indexOf("win") >= 0) {
-            if (!path.endsWith("\\")) {
-                path += "\\";
-            }
-        } else if (OS.indexOf("nux") >= 0) {
-            if (!path.endsWith("/")) {
-                path += "/";
-            }
-        } else if (!path.endsWith("/")) {
-            path += "/";
-        }
+//        final String OS = System.getProperty("os.name", "generic");
+//        if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
+//            if (!path.endsWith("/")) {
+//                path += "/";
+//            }
+//        } else if (OS.indexOf("win") >= 0) {
+//            if (!path.endsWith("\\")) {
+//                path += "\\";
+//            }
+//        } else if (OS.indexOf("nux") >= 0) {
+//            if (!path.endsWith("/")) {
+//                path += "/";
+//            }
+//        } else if (!path.endsWith("/")) {
+//            path += "/";
+//        }
 
         setPath(path);
     }
