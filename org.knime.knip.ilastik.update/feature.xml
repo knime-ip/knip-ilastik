@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="org.knime.knip.ilastik.update"
+      label="KNIP Ilastik Integration Update Site"
+      version="0.1.0.qualifier"
+      provider-name="University of Konstanz / KNIME">
+
+   <includes
+         id="org.knime.knip.ilastik.feature"
+         version="0.0.0"/>
+
+</feature>
