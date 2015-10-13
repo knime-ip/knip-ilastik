@@ -159,6 +159,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 return new DataColumnSpec[]{createImgSpec()};
             }
 
+            @SuppressWarnings("deprecation")
             @Override
             public void setProgress(final int curRowNr, final int rowCount, final RowKey lastKey,
                                     final ExecutionMonitor exec) {

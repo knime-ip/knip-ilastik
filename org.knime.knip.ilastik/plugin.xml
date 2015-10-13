@@ -14,7 +14,6 @@
          point="org.knime.workbench.repository.nodes">
       <node
       		category-path="/community/knip/ilastik"
-            expert-flag="false"
             factory-class="org.knime.knip.ilastik.nodes.headless.IlastikHeadlessNodeFactory"
             id="org.knime.knip.ilastik.nodes.headless.IlastikHeadlessNodeFactory">
       </node>
