@@ -2,10 +2,12 @@ KNIME Image Processing Ilastik Integration (BETA)
 ============
 ### ABOUT
 Integration of the Ilastik learning and segmentation toolkit
- into KNIME Image Processing.
+ into KNIME Image Processing. Detailed information is avaiable on  the [KNIME Website](https://tech.knime.org/book/ilastik-integration).
+
 
 ### Installation Instructions
 You can install the KNIME Ilastik Integration from the nightly or stable community contributions update-site.
+For instructions on how to add them to KNIME see the KNIME Community Contributions [page](https://tech.knime.org/community).
 
 After installation In KNIME: Go to ``File -> Preferences -> KNIME -> Ilastik`` and enter the path of your Ilastik installation.
 
