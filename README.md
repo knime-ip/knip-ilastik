@@ -1,6 +1,8 @@
 KNIME Image Processing Ilastik Integration (BETA)
 ============
 ### ABOUT
+![https://tech.knime.org/files/ilastik-logo.png](https://tech.knime.org/files/ilastik-logo.png)
+
 Integration of the Ilastik learning and segmentation toolkit
  into KNIME Image Processing.    
 Detailed information is avaiable on  the [KNIME Website](https://tech.knime.org/book/ilastik-integration).
