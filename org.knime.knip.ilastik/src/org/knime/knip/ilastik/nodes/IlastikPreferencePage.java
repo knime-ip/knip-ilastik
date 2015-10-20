@@ -71,7 +71,7 @@ import org.osgi.service.prefs.BackingStoreException;
  *
  * @author Andreas Graumann, University of Konstanz
  */
-public class IlastikPreferencePage extends PreferencePage implements IWorkbenchPreferencePage{
+public class IlastikPreferencePage extends PreferencePage implements IWorkbenchPreferencePage {
 
     private static final String DEFAULT_PATH = doAutoGuessCellProfilerPath();
 
@@ -79,10 +79,9 @@ public class IlastikPreferencePage extends PreferencePage implements IWorkbenchP
 
     private Composite m_container;
 
-    private FileFieldEditor m_pathEditor;
+    private FileFieldEditor m_fileEditor;
 
-    private static final NodeLogger LOGGER = NodeLogger
-            .getLogger(IlastikPreferencePage.class);
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(IlastikPreferencePage.class);
 
     /**
      * {@inheritDoc}
@@ -100,10 +99,9 @@ public class IlastikPreferencePage extends PreferencePage implements IWorkbenchP
         m_sc = new ScrolledComposite(parent, SWT.H_SCROLL | SWT.V_SCROLL);
         m_container = new Composite(m_sc, SWT.NONE);
         m_container.setLayout(new GridLayout());
-        m_pathEditor = new FileFieldEditor("org.knime.knip.ilastik.nodes",
-                "Path to Ilastik Installation", m_container);
-        m_pathEditor.setStringValue(Platform.getPreferencesService().getString(
-                "org.knime.knip.ilastik.nodes", "path", DEFAULT_PATH, null));
+        m_fileEditor = new FileFieldEditor("org.knime.knip.ilastik.nodes", "Path to Ilastik Installation", m_container);
+        m_fileEditor.setStringValue(Platform.getPreferencesService().getString("org.knime.knip.ilastik.nodes", "path",
+                                                                               DEFAULT_PATH, null));
         GridData gridData = new GridData();
         gridData.horizontalSpan = 3;
         gridData = new GridData();
@@ -115,7 +113,6 @@ public class IlastikPreferencePage extends PreferencePage implements IWorkbenchP
         return m_sc;
     }
 
-
     private static String getOS() {
         return System.getProperty("os.name", "generic").toLowerCase();
     }
@@ -123,11 +120,11 @@ public class IlastikPreferencePage extends PreferencePage implements IWorkbenchP
     private static String doAutoGuessCellProfilerPath() {
         final String OS = getOS();
         if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
-            return "/Applications/ilastik-1.1.6-OSX.app";
+            return "/Applications/ilastik-1.1.7-OSX.app";
         } else if (OS.indexOf("win") >= 0) {
-            return "C:\\Program Files\\ilastik-1.1.6-win64.exe";
+            return "C:\\Program Files\\ilastik-1.1.7-win64.exe";
         } else if (OS.indexOf("nux") >= 0) {
-            return "/usr/bin/ilastik-1.1.6-Linux/";
+            return "/usr/bin/ilastik-1.1.7-Linux/runIlastik.sh";
         } else {
             return "";
         }
@@ -147,47 +144,16 @@ public class IlastikPreferencePage extends PreferencePage implements IWorkbenchP
      */
     @Override
     protected void performApply() {
-//        if (!new File(m_pathEditor.getStringValue()).exists()) {
-//            throw new IllegalArgumentException(
-//                    "Path to CellProfiler does not exist! Please select the installation directory of CellProfiler.");
-//        }
-//
-//        if (!new File(m_pathEditor.getStringValue()).isDirectory()) {
-//            throw new IllegalArgumentException(
-//                    "Path to CellProfiler is not a directory! Please select the installation directory of CellProfiler.");
-//        }
-
-        String path = m_pathEditor.getStringValue();
-
-//        final String OS = System.getProperty("os.name", "generic");
-//        if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
-//            if (!path.endsWith("/")) {
-//                path += "/";
-//            }
-//        } else if (OS.indexOf("win") >= 0) {
-//            if (!path.endsWith("\\")) {
-//                path += "\\";
-//            }
-//        } else if (OS.indexOf("nux") >= 0) {
-//            if (!path.endsWith("/")) {
-//                path += "/";
-//            }
-//        } else if (!path.endsWith("/")) {
-//            path += "/";
-//        }
-
-        setPath(path);
+        setPath(m_fileEditor.getStringValue());
     }
 
     /**
      * Saves the given path.
      *
-     * @param path
-     *            Path to the CellProfiler module
+     * @param path Path to the CellProfiler module
      */
     private void setPath(final String path) {
-        IEclipsePreferences prefs = InstanceScope.INSTANCE
-                .getNode("org.knime.knip.ilastik.nodes");
+        IEclipsePreferences prefs = InstanceScope.INSTANCE.getNode("org.knime.knip.ilastik.nodes");
         prefs.put("path", path);
         try {
             prefs.flush();
@@ -198,12 +164,12 @@ public class IlastikPreferencePage extends PreferencePage implements IWorkbenchP
 
     /**
      *
-     * @return
-     *      Path of Ilastik installation
+     * @return Path of Ilastik installation
      */
     public static String getPath() {
 
-        final String path = Platform.getPreferencesService().getString("org.knime.knip.ilastik.nodes", "path", DEFAULT_PATH, null);
+        final String path =
+                Platform.getPreferencesService().getString("org.knime.knip.ilastik.nodes", "path", DEFAULT_PATH, null);
 
         final String OS = getOS();
         String macExtension = "";
