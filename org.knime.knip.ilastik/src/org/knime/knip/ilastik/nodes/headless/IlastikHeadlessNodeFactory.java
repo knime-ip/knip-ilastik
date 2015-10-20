@@ -83,7 +83,8 @@ public class IlastikHeadlessNodeFactory<T extends RealType<T>> extends NodeFacto
      * {@inheritDoc}
      */
     @Override
-    public NodeView<IlastikHeadlessNodeModel<T>> createNodeView(final int viewIndex, final IlastikHeadlessNodeModel<T> nodeModel) {
+    public NodeView<IlastikHeadlessNodeModel<T>> createNodeView(final int viewIndex,
+                                                                final IlastikHeadlessNodeModel<T> nodeModel) {
         return new TableCellViewNodeView<IlastikHeadlessNodeModel<T>>(nodeModel);
     }
 
