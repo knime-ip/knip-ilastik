@@ -55,26 +55,25 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map.Entry;
+import java.util.UUID;
 
 import org.knime.core.data.DataCell;
-import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.RowKey;
-import org.knime.core.data.container.CellFactory;
 import org.knime.core.data.container.CloseableRowIterator;
-import org.knime.core.data.container.ColumnRearranger;
+import org.knime.core.data.container.DataContainer;
+import org.knime.core.data.def.DefaultRow;
+import org.knime.core.node.BufferedDataContainer;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.BufferedDataTableHolder;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeLogger;
+import org.knime.core.node.KNIMEConstants;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
@@ -83,12 +82,14 @@ import org.knime.knip.base.data.img.ImgPlusCell;
 import org.knime.knip.base.data.img.ImgPlusCellFactory;
 import org.knime.knip.base.data.img.ImgPlusValue;
 import org.knime.knip.base.node.NodeUtils;
+import org.knime.knip.core.KNIPGateway;
 import org.knime.knip.ilastik.nodes.IlastikPreferencePage;
 import org.knime.knip.io.ScifioImgSource;
 import org.knime.knip.io.nodes.imgwriter2.ImgWriter2;
 
-import net.imagej.ImgPlus;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 
 /**
  *
@@ -114,8 +115,6 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      */
     private BufferedDataTable m_data;
 
-    private static final NodeLogger LOGGER = NodeLogger.getLogger(IlastikHeadlessNodeModel.class);
-
     /**
      * @param nrInDataPorts
      * @param nrOutDataPorts
@@ -129,102 +128,70 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      */
     @Override
     protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
-
-        final ColumnRearranger rearranger = new ColumnRearranger(inSpecs[0]);
-        rearranger.append(createCellFactory(inSpecs[0], null));
-
-        return new DataTableSpec[]{rearranger.createSpec()};
-    }
-
-    /**
-     *
-     * @param inSpec
-     * @return
-     * @throws InvalidSettingsException
-     */
-    private CellFactory createCellFactory(final DataTableSpec inSpec, final HashMap<RowKey, DataCell[]> dataCells)
-            throws InvalidSettingsException {
-
-        return new CellFactory() {
-
-            HashMap<RowKey, DataCell[]> m_dataCells = dataCells;
-
-            @Override
-            public DataCell[] getCells(final DataRow row) {
-                return m_dataCells.get(row.getKey());
-            }
-
-            @Override
-            public DataColumnSpec[] getColumnSpecs() {
-                return new DataColumnSpec[]{createImgSpec()};
-            }
-
-            @SuppressWarnings("deprecation")
-            @Override
-            public void setProgress(final int curRowNr, final int rowCount, final RowKey lastKey,
-                                    final ExecutionMonitor exec) {
-                exec.setProgress((double)curRowNr / rowCount);
-            }
-        };
+        return new DataTableSpec[]{createImgSpec()};
     }
 
     /**
      * @return
      */
-    private DataColumnSpec createImgSpec() {
-        return new DataColumnSpecCreator("Resulting Image", ImgPlusCell.TYPE).createSpec();
+    private DataTableSpec createImgSpec() {
+        return new DataTableSpec(new DataColumnSpecCreator("Result", ImgPlusCell.TYPE).createSpec());
     }
 
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
             throws Exception {
 
-        m_data = inData[0];
-
         // get index of image column
         int idx = getImgColIdx(inData[0].getSpec());
 
         // create tmp directory
-        String tmpDirPath = System.getProperty("java.io.tmpdir") + "/ilastik" + System.currentTimeMillis() + "/";
-        File tmpDir = new File(tmpDirPath);
+        final String tmpDirPath = KNIMEConstants.getKNIMETempDir() + "/ilastik/" + UUID.randomUUID() + "/";
+        final File tmpDir = new File(tmpDirPath);
         tmpDir.mkdir();
 
         // list to store all input file names
-        List<String> files = new ArrayList<String>();
+        final List<String> files = new ArrayList<String>();
 
         // copy images to tmp directory
         final CloseableRowIterator it = inData[0].iterator();
 
-        HashMap<String, RowKey> mapImgRowKey = new HashMap<String, RowKey>();
+        final List<Pair<String, RowKey>> listRowKey = new ArrayList<Pair<String, RowKey>>();
+
+        final ImgWriter2 iW = new ImgWriter2();
 
         // iterate over all input images and copy them to the tmp directory
         while (it.hasNext()) {
-            DataRow next = it.next();
+            final DataRow next = it.next();
+            final DataCell cell = next.getCell(idx);
+
+            if (cell.isMissing()) {
+                KNIPGateway.log().warn("Ignoring missing cell in row " + next.getKey() + "!");
+                continue;
+            }
 
             // get next image
-            final ImgPlusValue<?> img = (ImgPlusValue<?>)next.getCell(idx);
+            final ImgPlusValue<?> imgvalue = (ImgPlusValue<?>)cell;
 
-            String inFile = tmpDirPath + next.getKey().getString() + ".tif";
+            final String fileName = tmpDirPath + next.getKey().getString() + ".tif";
 
             // store in-image name in list
-            files.add(inFile);
+            files.add(fileName);
 
-            String outFile = tmpDirPath + next.getKey().getString();
             // store out-image name in iterable
             // store in map
-            mapImgRowKey.put(outFile, next.getKey());
+            listRowKey.add(new ValuePair<>(fileName, next.getKey()));
 
             // map for dimensions
-            final int[] map = new int[img.getDimensions().length];
+            final int[] map = new int[imgvalue.getDimensions().length];
             for (int i = 0; i < map.length; i++) {
                 map[i] = i;
             }
 
             // Image Writer
-            ImgWriter2 iW = new ImgWriter2();
 
             // write image to temp folder as input for ilastik
-            iW.writeImage(img.getImgPlus(), tmpDirPath + next.getKey().getString() + ".tif", "TIFF (tif)",
+            iW.writeImage(imgvalue.getImgPlus(), fileName, "TIFF (tif)",
                           "Uncompressed", map);
         }
 
@@ -232,21 +199,22 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             // run ilastik and process images
             runIlastik(tmpDirPath, files);
 
-            HashMap<RowKey, DataCell[]> dataCells = readResultImages(exec, mapImgRowKey);
+            final BufferedDataContainer container = exec.createDataContainer(createImgSpec());
 
-            final ColumnRearranger rearranger = new ColumnRearranger(inData[0].getDataTableSpec());
-            rearranger.append(createCellFactory(inData[0].getDataTableSpec(), dataCells));
+            readResultImages(new ImgPlusCellFactory(exec), listRowKey, container);
 
-            final BufferedDataTable[] res =
-                    new BufferedDataTable[]{exec.createColumnRearrangeTable(inData[0], rearranger, exec)};
-            m_data = res[0];
+            container.close();
+
+            m_data = container.getTable();
 
             cleanUp(tmpDir);
-            return res;
-        } catch (Exception e) {
-            LOGGER.error("Error when executing Ilastik. Please check the dimension of the input images.");
+
+            return new BufferedDataTable[]{m_data};
+        } catch (final Exception e) {
+            KNIPGateway.log()
+                    .error("Error when executing Ilastik. Please check the dimensionality of the input images.");
             cleanUp(tmpDir);
-            return inData;
+            throw new RuntimeException(e);
         }
     }
 
@@ -257,29 +225,25 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * @param exec
      *
      * @param exec
-     * @param mapImgRowKey
-     * @return
+     * @param listImgRowKey
      */
     @SuppressWarnings("unchecked")
-    private HashMap<RowKey, DataCell[]> readResultImages(final ExecutionContext exec,
-                                                         final HashMap<String, RowKey> mapImgRowKey) {
+    private void readResultImages(final ImgPlusCellFactory factory, final List<Pair<String, RowKey>> listImgRowKey,
+                                  final DataContainer container) {
 
-        HashMap<RowKey, DataCell[]> dataCells = new HashMap<RowKey, DataCell[]>();
         final ScifioImgSource imgOpener = new ScifioImgSource();
 
-        for (Entry<String, RowKey> e : mapImgRowKey.entrySet()) {
+        for (final Pair<String, RowKey> pair : listImgRowKey) {
             try {
-                ImgPlus<T> img = (ImgPlus<T>)imgOpener.getImg(e.getKey(), 0);
                 DataCell[] cells = new DataCell[1];
-                cells[0] = new ImgPlusCellFactory(exec).createCell(img);
-                dataCells.put(e.getValue(), cells);
-            } catch (Exception p) {
-                throw new IllegalStateException("Can't read image " + e.getKey());
+                System.out.println(pair.getA());
+                cells[0] = factory.createCell(imgOpener.getImg(pair.getA(), 0));
+                container.addRowToTable(new DefaultRow(pair.getB(), cells));
+            } catch (final Exception ex) {
+                throw new IllegalStateException("Can't read image in Ilastik Headless Node at RowId" + pair.getB());
             }
         }
         imgOpener.close();
-
-        return dataCells;
     }
 
     /**
@@ -303,7 +267,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         final String path = IlastikPreferencePage.getPath();
 
         // DO NOT TOUCH THIS ORDER!
-//        inFiles.add(0, "/bin/bash");
+        //        inFiles.add(0, "/bin/bash");
         inFiles.add(0, path);
         inFiles.add(1, "--headless");
         inFiles.add(2, "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()));
@@ -337,7 +301,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         BufferedReader bis = new BufferedReader(new InputStreamReader(in, Charset.defaultCharset()));
         String line;
         while ((line = bis.readLine()) != null) {
-            LOGGER.info(line);
+            KNIPGateway.log().info(line);
         }
     }
 
@@ -409,7 +373,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      */
     @Override
     protected void reset() {
-        // nothin to do here
+        m_data = null;
     }
 
     /**
