@@ -55,16 +55,21 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.knime.core.data.DataCell;
+import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.MissingCell;
 import org.knime.core.data.RowKey;
-import org.knime.core.data.container.CloseableRowIterator;
+import org.knime.core.data.container.ColumnRearranger;
 import org.knime.core.data.container.DataContainer;
+import org.knime.core.data.container.SingleCellFactory;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.node.BufferedDataContainer;
 import org.knime.core.node.BufferedDataTable;
@@ -78,6 +83,7 @@ import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.util.Pair;
 import org.knime.knip.base.data.img.ImgPlusCell;
 import org.knime.knip.base.data.img.ImgPlusCellFactory;
 import org.knime.knip.base.data.img.ImgPlusValue;
@@ -87,9 +93,8 @@ import org.knime.knip.ilastik.nodes.IlastikPreferencePage;
 import org.knime.knip.io.ScifioImgSource;
 import org.knime.knip.io.nodes.imgwriter2.ImgWriter2;
 
+import net.imagej.ImgPlus;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 
 /**
  *
@@ -99,6 +104,8 @@ import net.imglib2.util.ValuePair;
  * @param <T>
  */
 public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel implements BufferedDataTableHolder {
+
+    public static final String[] COL_CREATION_MODES = new String[]{"New Table", "Append", "Replace"};
 
     /**
      * Path to ilastik project file
@@ -110,10 +117,16 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      */
     private final SettingsModelString m_srcImgCol = createImgColModel();
 
+    private final SettingsModelString m_colCreationModeModel = createColCreationModeModel();
+
     /**
      * data table for table cell view
      */
     private BufferedDataTable m_data;
+
+    private Map<RowKey, Pair<String, String>> m_outFiles;
+
+    private ImgPlusCellFactory m_imgPlusCellFactory;
 
     /**
      * @param nrInDataPorts
@@ -128,7 +141,20 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      */
     @Override
     protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
-        return new DataTableSpec[]{createImgSpec()};
+        DataTableSpec outSpec = null;
+        String colCreationMode = m_colCreationModeModel.getStringValue();
+
+        if (colCreationMode.equals(COL_CREATION_MODES[0])) { // new table
+            outSpec = createImgSpec();
+        } else if (colCreationMode.equals(COL_CREATION_MODES[1])) { // Append
+            outSpec = createAppendRearanger(inSpecs[0]).createSpec();
+        } else if (colCreationMode.equals(COL_CREATION_MODES[2])) { // Replace
+            outSpec = createReplaceRearanger(inSpecs[0]).createSpec();
+        } else {
+            throw new IllegalArgumentException("The value of the column creation setting is invalid!");
+        }
+
+        return new DataTableSpec[]{outSpec};
     }
 
     /**
@@ -148,39 +174,37 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         // create tmp directory
         final String tmpDirPath = KNIMEConstants.getKNIMETempDir() + "/ilastik/" + UUID.randomUUID() + "/";
         final File tmpDir = new File(tmpDirPath);
-        tmpDir.mkdir();
+        tmpDir.mkdirs();
 
         // list to store all input file names
         final List<String> files = new ArrayList<String>();
 
-        // copy images to tmp directory
-        final CloseableRowIterator it = inData[0].iterator();
-
-        final List<Pair<String, RowKey>> listRowKey = new ArrayList<Pair<String, RowKey>>();
-
         final ImgWriter2 iW = new ImgWriter2();
 
+        m_outFiles = new LinkedHashMap<>();
+        m_imgPlusCellFactory = new ImgPlusCellFactory(exec);
+
         // iterate over all input images and copy them to the tmp directory
-        while (it.hasNext()) {
-            final DataRow next = it.next();
-            final DataCell cell = next.getCell(idx);
+        for (DataRow row : inData[0]) {
+
+            final DataCell cell = row.getCell(idx);
 
             if (cell.isMissing()) {
-                KNIPGateway.log().warn("Ignoring missing cell in row " + next.getKey() + "!");
+                KNIPGateway.log().warn("Ignoring missing cell in row " + row.getKey() + "!");
                 continue;
             }
 
             // get next image
             final ImgPlusValue<?> imgvalue = (ImgPlusValue<?>)cell;
 
-            final String fileName = tmpDirPath + next.getKey().getString() + ".tif";
+            final String fileName = tmpDirPath + row.getKey().getString() + ".tif";
 
             // store in-image name in list
             files.add(fileName);
 
             // store out-image name in iterable
             // store in map
-            listRowKey.add(new ValuePair<>(fileName, next.getKey()));
+            m_outFiles.put(row.getKey(), new Pair<>(fileName, imgvalue.getImgPlus().getSource()));
 
             // map for dimensions
             final int[] map = new int[imgvalue.getDimensions().length];
@@ -191,22 +215,30 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             // Image Writer
 
             // write image to temp folder as input for ilastik
-            iW.writeImage(imgvalue.getImgPlus(), fileName, "TIFF (tif)",
-                          "Uncompressed", map);
+            iW.writeImage(imgvalue.getImgPlus(), fileName, "TIFF (tif)", "Uncompressed", map);
         }
 
         try {
             // run ilastik and process images
             runIlastik(tmpDirPath, files);
 
-            final BufferedDataContainer container = exec.createDataContainer(createImgSpec());
+            String colCreationMode = m_colCreationModeModel.getStringValue();
 
-            readResultImages(new ImgPlusCellFactory(exec), listRowKey, container);
+            if (colCreationMode.equals(COL_CREATION_MODES[0])) { // new table
 
-            container.close();
+                BufferedDataContainer container = null;
+                container = exec.createDataContainer(createImgSpec());
+                readResultImages(new ImgPlusCellFactory(exec), container);
+                container.close();
+                m_data = container.getTable();
 
-            m_data = container.getTable();
-
+            } else if (colCreationMode.equals(COL_CREATION_MODES[1])) { // Append
+                m_data = exec.createColumnRearrangeTable(inData[0], createAppendRearanger(inData[0].getSpec()), exec);
+            } else if (colCreationMode.equals(COL_CREATION_MODES[2])) { // Replace
+                m_data = exec.createColumnRearrangeTable(inData[0], createReplaceRearanger(inData[0].getSpec()), exec);
+            } else {
+                throw new IllegalArgumentException("The value of the column creation setting is invalid!");
+            }
             cleanUp(tmpDir);
 
             return new BufferedDataTable[]{m_data};
@@ -219,30 +251,103 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     }
 
     /**
+     * @param listRowKey
+     * @param imgPlusCellFactory
+     * @return
+     */
+    private ColumnRearranger createReplaceRearanger(final DataTableSpec inSpec) {
+        final ColumnRearranger rearranger = new ColumnRearranger(inSpec);
+        final DataColumnSpec newColSpec = inSpec.getColumnSpec(m_srcImgCol.getStringValue());
+
+        // utility object that performs the calculation
+        rearranger.replace(new SingleCellFactory(newColSpec) {
+
+            ScifioImgSource imgOpener = new ScifioImgSource();
+
+            @SuppressWarnings("unchecked")
+            @Override
+            // Get the scores weighted by the exploration factor
+            public DataCell getCell(final DataRow row) {
+                RowKey key = row.getKey();
+                Pair<String, String> name = m_outFiles.get(key);
+                String outfile = name.getFirst();
+                String source = name.getSecond();
+
+                DataCell cell;
+                try {
+                    ImgPlus<T> img = (ImgPlus<T>)imgOpener.getImg(outfile, 0);
+                    img.setSource(source);
+                    cell = m_imgPlusCellFactory.createCell(img);
+                } catch (Exception e) {
+                    cell = new MissingCell(outfile);
+                }
+                return cell;
+            }
+        }, m_srcImgCol.getStringValue());
+        return rearranger;
+    }
+
+    /**
+     * @return
+     */
+    private ColumnRearranger createAppendRearanger(final DataTableSpec inSpec) {
+        final ColumnRearranger rearranger = new ColumnRearranger(inSpec);
+        final DataColumnSpec newColSpec = new DataColumnSpecCreator("Result", ImgPlusCell.TYPE).createSpec();
+
+        // utility object that performs the calculation
+        rearranger.append(new SingleCellFactory(newColSpec) {
+
+            ScifioImgSource imgOpener = new ScifioImgSource();
+
+            @SuppressWarnings("unchecked")
+            @Override
+            // Get the scores weighted by the exploration factor
+            public DataCell getCell(final DataRow row) {
+                RowKey key = row.getKey();
+                Pair<String, String> names = m_outFiles.get(key);
+                String outfile = names.getFirst();
+                String source = names.getSecond();
+                DataCell cell;
+                try {
+                    ImgPlus<T> img = (ImgPlus<T>)imgOpener.getImg(outfile, 0);
+                    img.setSource(source);
+                    cell = m_imgPlusCellFactory.createCell(img);
+                } catch (Exception e) {
+                    cell = new MissingCell(outfile);
+                }
+                return cell;
+            }
+        });
+        return rearranger;
+    }
+
+    /**
      *
      * Read resulting images every channel is a probability map for one labeling
      *
      * @param exec
      *
      * @param exec
-     * @param listImgRowKey
+     * @param outFiles
      */
     @SuppressWarnings("unchecked")
-    private void readResultImages(final ImgPlusCellFactory factory, final List<Pair<String, RowKey>> listImgRowKey,
-                                  final DataContainer container) {
+    private void readResultImages(final ImgPlusCellFactory factory, final DataContainer container) {
 
         final ScifioImgSource imgOpener = new ScifioImgSource();
 
-        for (final Pair<String, RowKey> pair : listImgRowKey) {
+        m_outFiles.forEach((final RowKey key, final Pair<String, String> pair) -> {
             try {
                 DataCell[] cells = new DataCell[1];
-                System.out.println(pair.getA());
-                cells[0] = factory.createCell(imgOpener.getImg(pair.getA(), 0));
-                container.addRowToTable(new DefaultRow(pair.getB(), cells));
-            } catch (final Exception ex) {
-                throw new IllegalStateException("Can't read image in Ilastik Headless Node at RowId" + pair.getB());
+
+                ImgPlus<RealType> img = imgOpener.getImg(pair.getFirst(), 0);
+                img.setSource(pair.getSecond());
+                cells[0] = factory.createCell(img);
+                container.addRowToTable(new DefaultRow(key, cells));
+            } catch (Exception e) {
+                imgOpener.close();
+                throw new IllegalStateException("Can't read image in Ilastik Headless Node at RowId" + key);
             }
-        }
+        });
         imgOpener.close();
     }
 
@@ -267,7 +372,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         final String path = IlastikPreferencePage.getPath();
 
         // DO NOT TOUCH THIS ORDER!
-        //        inFiles.add(0, "/bin/bash");
+        // inFiles.add(0, "/bin/bash");
         inFiles.add(0, path);
         inFiles.add(1, "--headless");
         inFiles.add(2, "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()));
@@ -335,10 +440,18 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
     /**
      *
-     * @return SettingsModelString for source image column
+     * @return SettingsModelString for source image column.
      */
     public static SettingsModelString createImgColModel() {
         return new SettingsModelString("src_image", "");
+    }
+
+    /**
+     * @return {@link SettingsModelString} for the column creation mode.
+     */
+    public static SettingsModelString createColCreationModeModel() {
+        return new SettingsModelString("colCreationMode", COL_CREATION_MODES[0]);
+
     }
 
     /**
@@ -348,6 +461,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     protected void saveSettingsTo(final NodeSettingsWO settings) {
         m_pathToIlastikProjectFileModel.saveSettingsTo(settings);
         m_srcImgCol.saveSettingsTo(settings);
+        m_colCreationModeModel.saveSettingsTo(settings);
     }
 
     /**
@@ -357,6 +471,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_pathToIlastikProjectFileModel.validateSettings(settings);
         m_srcImgCol.validateSettings(settings);
+        m_colCreationModeModel.validateSettings(settings);
     }
 
     /**
@@ -366,6 +481,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_pathToIlastikProjectFileModel.loadSettingsFrom(settings);
         m_srcImgCol.loadSettingsFrom(settings);
+        m_colCreationModeModel.loadSettingsFrom(settings);
     }
 
     /**
