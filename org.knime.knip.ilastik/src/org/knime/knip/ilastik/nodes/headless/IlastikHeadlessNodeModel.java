@@ -53,7 +53,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.nio.file.InvalidPathException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -83,6 +85,7 @@ import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.util.FileUtil;
 import org.knime.core.util.Pair;
 import org.knime.knip.base.data.img.ImgPlusCell;
 import org.knime.knip.base.data.img.ImgPlusCellFactory;
@@ -302,16 +305,16 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             public DataCell getCell(final DataRow row) {
                 RowKey key = row.getKey();
                 Pair<String, String> names = m_outFiles.get(key);
-                String outfile = names.getFirst();
-                String source = names.getSecond();
                 DataCell cell;
                 try {
+                    String outfile = names.getFirst();
+                    String source = names.getSecond();
                     ImgPlus<T> img = (ImgPlus<T>)imgOpener.getImg(outfile, 0);
                     img.setSource(source);
                     img.setName(key + "_result");
                     cell = m_imgPlusCellFactory.createCell(img);
                 } catch (Exception e) {
-                    cell = new MissingCell(outfile);
+                    cell = new MissingCell("Error during execution");
                 }
                 return cell;
             }
@@ -344,7 +347,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 container.addRowToTable(new DefaultRow(key, cells));
             } catch (Exception e) {
                 imgOpener.close();
-                throw new IllegalStateException("Can't read image in Ilastik Headless Node at RowId" + key);
+                throw new IllegalStateException("Can't read image in Ilastik Headless Node at RowId: " + key);
             }
         });
         imgOpener.close();
@@ -363,6 +366,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     /**
      * @throws IOException
      * @throws InterruptedException
+     * @throws URISyntaxException
      */
     private boolean runIlastik(final String tmpDirPath, final List<String> inFiles)
             throws IOException, InterruptedException {
@@ -370,11 +374,22 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         // get path of ilastik
         final String path = IlastikPreferencePage.getPath();
 
+        String outpath;
+        try {
+            outpath = FileUtil.resolveToPath(FileUtil.toURL(m_pathToIlastikProjectFileModel.getStringValue()))
+                    .toAbsolutePath().toString();
+        } catch (InvalidPathException | URISyntaxException e) {
+            throw new IllegalArgumentException("The Path to the project file could not be resolved: " + e.getMessage());
+        }
+        if (outpath == null) {
+            throw new IllegalArgumentException("The Path to the project file could not be resolved.");
+        }
+
         // DO NOT TOUCH THIS ORDER!
         // inFiles.add(0, "/bin/bash");
         inFiles.add(0, path);
         inFiles.add(1, "--headless");
-        inFiles.add(2, "--project=".concat(m_pathToIlastikProjectFileModel.getStringValue()));
+        inFiles.add(2, "--project=".concat(outpath));
         inFiles.add(3, "--output_format=tif");
         inFiles.add(4, "--output_filename_format=".concat(tmpDirPath).concat("{nickname}_result"));
 
