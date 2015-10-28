@@ -1,0 +1,16 @@
+<!DOCTYPE knimeNode PUBLIC "-//UNIKN//DTD KNIME Node 2.0//EN" "http://www.knime.org/Node.dtd">
+<knimeNode icon="icons/threshold.png" type="Visualizer">
+	<name>Ilastik Hilite Bridge</name>
+	<shortDescription>
+		Node to connect KNIME with ilastik
+	</shortDescription>
+
+	<fullDescription>
+		<intro>Enables the user to hilite rows from ilastik</intro>
+	</fullDescription>
+
+	<ports>
+	<inPort name="data to be hilited" index="0">All data will be hilited</inPort>
+	</ports>
+
+</knimeNode>
