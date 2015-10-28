@@ -184,6 +184,8 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         m_outFiles = new LinkedHashMap<>();
         m_imgPlusCellFactory = new ImgPlusCellFactory(exec);
 
+        int uniqueFileNameCounter = 0;
+
         // iterate over all input images and copy them to the tmp directory
         for (DataRow row : inData[0]) {
 
@@ -197,14 +199,23 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             // get next image
             final ImgPlusValue<?> imgvalue = (ImgPlusValue<?>)cell;
 
-            final String fileName = tmpDirPath + row.getKey().getString() + ".tif";
+            //String fileName = tmpDirPath + row.getKey().getString();
 
-            // store in-image name in list
-            files.add(fileName);
+            // create new unique file names
+            String fileName = tmpDirPath + "file" + uniqueFileNameCounter;
+            uniqueFileNameCounter++;
 
             // store out-image name in iterable
             // store in map
-            m_outFiles.put(row.getKey(), new Pair<>(fileName, imgvalue.getImgPlus().getSource()));
+            String resultFileName = fileName + "_result.tif";
+
+            m_outFiles.put(row.getKey(), new Pair<>(resultFileName, imgvalue.getImgPlus().getSource()));
+
+            // attach file extension
+            fileName = fileName + ".tif";
+
+            // store in-image name in list
+            files.add(fileName);
 
             // map for dimensions
             final int[] map = new int[imgvalue.getDimensions().length];
@@ -260,30 +271,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         final DataColumnSpec newColSpec = inSpec.getColumnSpec(m_srcImgCol.getStringValue());
 
         // utility object that performs the calculation
-        rearranger.replace(new SingleCellFactory(newColSpec) {
-
-            ScifioImgSource imgOpener = new ScifioImgSource();
-
-            @SuppressWarnings("unchecked")
-            @Override
-            // Get the scores weighted by the exploration factor
-            public DataCell getCell(final DataRow row) {
-                RowKey key = row.getKey();
-                Pair<String, String> name = m_outFiles.get(key);
-                String outfile = name.getFirst();
-                String source = name.getSecond();
-
-                DataCell cell;
-                try {
-                    ImgPlus<T> img = (ImgPlus<T>)imgOpener.getImg(outfile, 0);
-                    img.setSource(source);
-                    cell = m_imgPlusCellFactory.createCell(img);
-                } catch (Exception e) {
-                    cell = new MissingCell(outfile);
-                }
-                return cell;
-            }
-        }, m_srcImgCol.getStringValue());
+        rearranger.replace(createResultCellFactory(newColSpec), m_srcImgCol.getStringValue());
         return rearranger;
     }
 
@@ -295,7 +283,16 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         final DataColumnSpec newColSpec = new DataColumnSpecCreator("Result", ImgPlusCell.TYPE).createSpec();
 
         // utility object that performs the calculation
-        rearranger.append(new SingleCellFactory(newColSpec) {
+        rearranger.append(createResultCellFactory(newColSpec));
+        return rearranger;
+    }
+
+    /**
+     * @param newColSpec the column spec
+     * @return a cellfactory that reads the result images from ilastik
+     */
+    private SingleCellFactory createResultCellFactory(final DataColumnSpec newColSpec) {
+        SingleCellFactory rearranger = new SingleCellFactory(newColSpec) {
 
             ScifioImgSource imgOpener = new ScifioImgSource();
 
@@ -311,13 +308,14 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 try {
                     ImgPlus<T> img = (ImgPlus<T>)imgOpener.getImg(outfile, 0);
                     img.setSource(source);
+                    img.setName(key + "_result");
                     cell = m_imgPlusCellFactory.createCell(img);
                 } catch (Exception e) {
                     cell = new MissingCell(outfile);
                 }
                 return cell;
             }
-        });
+        };
         return rearranger;
     }
 
@@ -341,6 +339,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
                 ImgPlus<RealType> img = imgOpener.getImg(pair.getFirst(), 0);
                 img.setSource(pair.getSecond());
+                img.setName(key + "_result");
                 cells[0] = factory.createCell(img);
                 container.addRowToTable(new DefaultRow(key, cells));
             } catch (Exception e) {
