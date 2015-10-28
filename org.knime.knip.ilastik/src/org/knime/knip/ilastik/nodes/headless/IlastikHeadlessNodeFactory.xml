@@ -26,6 +26,6 @@
 		<outPort index="0" name="Images produced by Ilastik">Ilastik images</outPort>
 	</ports>
 	<views>
-		<view name="Table Cell View" index="0">Table Cell View</view>
+		<view name="Image Viewer" index="0">Image Viewer</view>
 	</views>
 </knimeNode>
