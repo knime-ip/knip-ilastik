@@ -401,6 +401,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
         // write ilastik output to knime console
         writeToKnimeConsole(p.getInputStream());
+        writeToKnimeConsole(p.getErrorStream());
 
         // 0 indicates successful execution
         if (p.waitFor() == 0) {
