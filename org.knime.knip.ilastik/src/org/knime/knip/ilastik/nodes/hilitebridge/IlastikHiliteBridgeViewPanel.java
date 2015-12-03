@@ -174,7 +174,7 @@ public class IlastikHiliteBridgeViewPanel extends JPanel {
         m_serverStatus = new JLabel("Server is currently not running");
         final JButton serverStart = new JButton("Start Server");
         final JButton serverStop = new JButton("Stop Server");
-        final JButton clearHilites = new JButton("Clear Table");
+        final JButton clearHilites = new JButton("Clear Selection");
         final JButton allHilites = new JButton("Select All");
 
         // init action listeners
