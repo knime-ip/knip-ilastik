@@ -62,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.commons.io.FileUtils;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
@@ -202,8 +203,6 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             // get next image
             final ImgPlusValue<?> imgvalue = (ImgPlusValue<?>)cell;
 
-            //String fileName = tmpDirPath + row.getKey().getString();
-
             // create new unique file names
             String fileName = tmpDirPath + "file" + uniqueFileNameCounter;
             uniqueFileNameCounter++;
@@ -234,7 +233,10 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
         try {
             // run ilastik and process images
-            runIlastik(tmpDirPath, files);
+            boolean success = runIlastik(tmpDirPath, files);
+            if (!success) {
+                throw new IllegalStateException();
+            }
 
             String colCreationMode = m_colCreationModeModel.getStringValue();
 
@@ -357,10 +359,15 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * Delete temporary directory
      *
      * @param tmpDir
+     * @throws IOException
      */
-    private void cleanUp(final File tmpDir) {
-        // delete tmp directory
-        tmpDir.delete();
+    private void cleanUp(final File tmpDir) throws IOException {
+//         delete tmp directory
+        try {
+            FileUtils.forceDelete(tmpDir);
+        } catch (RuntimeException e) {
+            throw new IOException(e);
+        }
     }
 
     /**
