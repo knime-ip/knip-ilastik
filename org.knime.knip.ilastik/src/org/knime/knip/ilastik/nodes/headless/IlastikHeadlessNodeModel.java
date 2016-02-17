@@ -496,7 +496,16 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_pathToIlastikProjectFileModel.validateSettings(settings);
         m_srcImgCol.validateSettings(settings);
-        m_colCreationModeModel.validateSettings(settings);
+        try {
+            m_colCreationModeModel.validateSettings(settings);
+        } catch (InvalidSettingsException e) {
+            if (("String for key \"colCreationMode\" not found.").equals(e.getMessage())) {
+                // Ignore missing colCreationMode settings model for backwards compatibility.
+            } else {
+                throw e;
+            }
+        }
+
     }
 
     /**
@@ -506,7 +515,15 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_pathToIlastikProjectFileModel.loadSettingsFrom(settings);
         m_srcImgCol.loadSettingsFrom(settings);
-        m_colCreationModeModel.loadSettingsFrom(settings);
+        try {
+            m_colCreationModeModel.loadSettingsFrom(settings);
+        } catch (InvalidSettingsException e) {
+            if (("String for key \"colCreationMode\" not found.").equals(e.getMessage())) {
+                // Ignore missing colCreationMode settings model for backwards compatibility.
+            } else {
+                throw e;
+            }
+        }
     }
 
     /**
