@@ -109,7 +109,17 @@ import net.imglib2.type.numeric.RealType;
  */
 public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel implements BufferedDataTableHolder {
 
-    public static final String[] COL_CREATION_MODES = new String[]{"New Table", "Append", "Replace"};
+    static final class ColCreationModes {
+        private ColCreationModes() {
+            // NB Util Class
+        }
+
+        public static final String NEW_TABLE = "New Table";
+
+        public static final String APPEND = "Append";
+
+        public static final String REPLACE = "Replace";
+    }
 
     /**
      * Path to ilastik project file
@@ -145,14 +155,14 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      */
     @Override
     protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
-        DataTableSpec outSpec = null;
+        DataTableSpec outSpec;
         String colCreationMode = m_colCreationModeModel.getStringValue();
 
-        if (colCreationMode.equals(COL_CREATION_MODES[0])) { // new table
+        if (colCreationMode.equals(ColCreationModes.NEW_TABLE)) { // new table
             outSpec = createImgSpec();
-        } else if (colCreationMode.equals(COL_CREATION_MODES[1])) { // Append
+        } else if (colCreationMode.equals(ColCreationModes.APPEND)) { // Append
             outSpec = createAppendRearanger(inSpecs[0]).createSpec();
-        } else if (colCreationMode.equals(COL_CREATION_MODES[2])) { // Replace
+        } else if (colCreationMode.equals(ColCreationModes.REPLACE)) { // Replace
             outSpec = createReplaceRearanger(inSpecs[0]).createSpec();
         } else {
             throw new IllegalArgumentException("The value of the column creation setting is invalid!");
@@ -181,7 +191,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         tmpDir.mkdirs();
 
         // list to store all input file names
-        final List<String> files = new ArrayList<String>();
+        final List<String> files = new ArrayList<>();
 
         final ImgWriter2 iW = new ImgWriter2();
 
@@ -240,17 +250,16 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
             String colCreationMode = m_colCreationModeModel.getStringValue();
 
-            if (colCreationMode.equals(COL_CREATION_MODES[0])) { // new table
+            if (colCreationMode.equals(ColCreationModes.NEW_TABLE)) { // new table
 
-                BufferedDataContainer container = null;
-                container = exec.createDataContainer(createImgSpec());
+                BufferedDataContainer container = exec.createDataContainer(createImgSpec());
                 readResultImages(new ImgPlusCellFactory(exec), container);
                 container.close();
                 m_data = container.getTable();
 
-            } else if (colCreationMode.equals(COL_CREATION_MODES[1])) { // Append
+            } else if (colCreationMode.equals(ColCreationModes.APPEND)) { // Append
                 m_data = exec.createColumnRearrangeTable(inData[0], createAppendRearanger(inData[0].getSpec()), exec);
-            } else if (colCreationMode.equals(COL_CREATION_MODES[2])) { // Replace
+            } else if (colCreationMode.equals(ColCreationModes.REPLACE)) { // Replace
                 m_data = exec.createColumnRearrangeTable(inData[0], createReplaceRearanger(inData[0].getSpec()), exec);
             } else {
                 throw new IllegalArgumentException("The value of the column creation setting is invalid!");
@@ -262,7 +271,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             KNIPGateway.log()
                     .error("Error when executing Ilastik. Please check the dimensionality of the input images.");
             cleanUp(tmpDir);
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         }
     }
 
@@ -297,8 +306,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * @return a cellfactory that reads the result images from ilastik
      */
     private SingleCellFactory createResultCellFactory(final DataColumnSpec newColSpec) {
-        SingleCellFactory rearranger = new SingleCellFactory(newColSpec) {
-
+        return new SingleCellFactory(newColSpec) {
             ScifioImgSource imgOpener = new ScifioImgSource();
 
             @SuppressWarnings("unchecked")
@@ -316,12 +324,11 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                     img.setName(key + "_result");
                     cell = m_imgPlusCellFactory.createCell(img);
                 } catch (Exception e) {
-                    cell = new MissingCell("Error during execution");
+                    cell = new MissingCell("Error during execution: " + e);
                 }
                 return cell;
             }
         };
-        return rearranger;
     }
 
     /**
@@ -349,7 +356,8 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 container.addRowToTable(new DefaultRow(key, cells));
             } catch (Exception e) {
                 imgOpener.close();
-                throw new IllegalStateException("Can't read image in Ilastik Headless Node at RowId: " + key);
+                throw new IllegalStateException(
+                        "Can't read image in Ilastik Headless Node at RowId: " + key + " : " + e);
             }
         });
         imgOpener.close();
@@ -362,7 +370,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * @throws IOException
      */
     private void cleanUp(final File tmpDir) throws IOException {
-//         delete tmp directory
+        //         delete tmp directory
         try {
             FileUtils.forceDelete(tmpDir);
         } catch (RuntimeException e) {
@@ -386,14 +394,13 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             outpath = FileUtil.resolveToPath(FileUtil.toURL(m_pathToIlastikProjectFileModel.getStringValue()))
                     .toAbsolutePath().toString();
         } catch (InvalidPathException | URISyntaxException e) {
-            throw new IllegalArgumentException("The Path to the project file could not be resolved: " + e.getMessage());
+            throw new IllegalArgumentException("The Path to the project file could not be resolved: " + e);
         }
         if (outpath == null) {
             throw new IllegalArgumentException("The Path to the project file could not be resolved.");
         }
 
         // DO NOT TOUCH THIS ORDER!
-        // inFiles.add(0, "/bin/bash");
         inFiles.add(0, path);
         inFiles.add(1, "--headless");
         inFiles.add(2, "--project=".concat(outpath));
@@ -411,11 +418,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         writeToKnimeConsole(p.getErrorStream());
 
         // 0 indicates successful execution
-        if (p.waitFor() == 0) {
-            return true;
-        } else {
-            return false;
-        }
+        return p.waitFor() == 0;
     }
 
     /**
@@ -472,7 +475,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * @return {@link SettingsModelString} for the column creation mode.
      */
     public static SettingsModelString createColCreationModeModel() {
-        return new SettingsModelString("colCreationMode", COL_CREATION_MODES[0]);
+        return new SettingsModelString("colCreationMode", ColCreationModes.NEW_TABLE);
 
     }
 

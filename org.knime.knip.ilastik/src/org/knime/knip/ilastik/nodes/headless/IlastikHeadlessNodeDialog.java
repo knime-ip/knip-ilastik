@@ -54,6 +54,7 @@ import org.knime.core.node.defaultnodesettings.DialogComponentColumnNameSelectio
 import org.knime.core.node.defaultnodesettings.DialogComponentFileChooser;
 import org.knime.core.node.defaultnodesettings.DialogComponentStringSelection;
 import org.knime.knip.base.data.img.ImgPlusValue;
+import org.knime.knip.ilastik.nodes.headless.IlastikHeadlessNodeModel.ColCreationModes;
 
 /**
  *
@@ -76,20 +77,20 @@ public class IlastikHeadlessNodeDialog extends DefaultNodeSettingsPane {
         // - Path to the ilastik project file (*.ilp) it must contain an ilastik
         // pixel classification workflow
         // - Is there a chance to check this??
-        this.createNewGroup("Path to Ilastik Project File");
+        createNewGroup("Path to Ilastik Project File");
         addDialogComponent(new DialogComponentFileChooser(
                 IlastikHeadlessNodeModel.createPathToIlastikProjectFileModel(), "test2", ".ilp"));
 
-        this.closeCurrentGroup();
+        closeCurrentGroup();
 
-        this.createNewGroup("Column Selection");
+        createNewGroup("Column Selection");
 
         addDialogComponent(new DialogComponentStringSelection(IlastikHeadlessNodeModel.createColCreationModeModel(),
-                "Column Creation Mode", IlastikHeadlessNodeModel.COL_CREATION_MODES));
+                "Column Creation Mode",
+                new String[]{ColCreationModes.NEW_TABLE, ColCreationModes.REPLACE, ColCreationModes.APPEND}));
 
         addDialogComponent(new DialogComponentColumnNameSelection(IlastikHeadlessNodeModel.createImgColModel(),
                 "Images to work on: ", 0, ImgPlusValue.class));
-        this.closeCurrentGroup();
-
+        closeCurrentGroup();
     }
 }

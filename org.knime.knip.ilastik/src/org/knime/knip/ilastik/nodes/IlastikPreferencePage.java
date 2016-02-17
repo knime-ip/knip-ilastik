@@ -74,6 +74,11 @@ import org.osgi.service.prefs.BackingStoreException;
 public class IlastikPreferencePage extends PreferencePage
         implements IWorkbenchPreferencePage {
 
+    /**
+     *
+     */
+    private static final String PLUGIN_PATH = "org.knime.knip.ilastik.nodes";
+
     private static final String DEFAULT_PATH = doAutoGuessCellProfilerPath();
 
     private ScrolledComposite m_sc;
@@ -101,10 +106,10 @@ public class IlastikPreferencePage extends PreferencePage
         m_sc = new ScrolledComposite(parent, SWT.H_SCROLL | SWT.V_SCROLL);
         m_container = new Composite(m_sc, SWT.NONE);
         m_container.setLayout(new GridLayout());
-        m_fileEditor = new FileFieldEditor("org.knime.knip.ilastik.nodes",
+        m_fileEditor = new FileFieldEditor(PLUGIN_PATH,
                 "Path to Ilastik Installation", m_container);
         m_fileEditor.setStringValue(Platform.getPreferencesService().getString(
-                "org.knime.knip.ilastik.nodes", "path", DEFAULT_PATH, null));
+                PLUGIN_PATH, "path", DEFAULT_PATH, null));
         GridData gridData = new GridData();
         gridData.horizontalSpan = 3;
         gridData = new GridData();
@@ -121,12 +126,12 @@ public class IlastikPreferencePage extends PreferencePage
     }
 
     private static String doAutoGuessCellProfilerPath() {
-        final String OS = getOS();
-        if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
+        final String os = getOS();
+        if ((os.indexOf("mac") >= 0) || (os.indexOf("darwin") >= 0)) {
             return "/Applications/ilastik-1.1.7-OSX.app";
-        } else if (OS.indexOf("win") >= 0) {
+        } else if (os.indexOf("win") >= 0) {
             return "C:\\Program Files\\ilastik-1.1.7-win64.exe";
-        } else if (OS.indexOf("nux") >= 0) {
+        } else if (os.indexOf("nux") >= 0) {
             return "/usr/bin/ilastik-1.1.7-Linux/runIlastik.sh";
         } else {
             return "";
@@ -158,7 +163,7 @@ public class IlastikPreferencePage extends PreferencePage
      */
     private void setPath(final String path) {
         IEclipsePreferences prefs =
-                InstanceScope.INSTANCE.getNode("org.knime.knip.ilastik.nodes");
+                InstanceScope.INSTANCE.getNode(PLUGIN_PATH);
         prefs.put("path", path);
         try {
             prefs.flush();
@@ -174,13 +179,13 @@ public class IlastikPreferencePage extends PreferencePage
     public static String getPath() {
 
         final String path = Platform.getPreferencesService().getString(
-                "org.knime.knip.ilastik.nodes", "path", DEFAULT_PATH, null);
+                PLUGIN_PATH, "path", DEFAULT_PATH, null);
 
-        final String OS = getOS();
+        final String os = getOS();
         String macExtension = "";
         // On Mac OS X we must call the program within the app to be able to add
         // arguments
-        if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
+        if ((os.indexOf("mac") >= 0) || (os.indexOf("darwin") >= 0)) {
             macExtension = "/Contents/MacOS/ilastik";
         }
         return path.concat(macExtension);
