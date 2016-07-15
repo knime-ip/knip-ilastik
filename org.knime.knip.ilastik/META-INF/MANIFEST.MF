@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: KNIME Ilastik Integration Plugin
 Bundle-SymbolicName: org.knime.knip.ilastik;singleton:=true
-Bundle-Version: 0.2.1.qualifier
+Bundle-Version: 0.2.2.qualifier
 Bundle-ClassPath: knipilastik.jar,
  lib/cisd-jhdf5-batteries_included_lin_win_mac.jar,
  lib/javax.json-api-1.0.jar,
