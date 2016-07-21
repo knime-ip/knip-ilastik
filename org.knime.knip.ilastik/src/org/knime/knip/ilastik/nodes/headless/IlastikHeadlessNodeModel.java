@@ -329,7 +329,6 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 imgOpener.close();
                 return cell;
             }
-
         };
     }
 
