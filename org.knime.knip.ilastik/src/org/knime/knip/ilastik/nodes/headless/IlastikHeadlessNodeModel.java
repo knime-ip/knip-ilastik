@@ -109,6 +109,8 @@ import net.imglib2.type.numeric.RealType;
  */
 public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel implements BufferedDataTableHolder {
 
+    private static final String COL_NAME = "Result";
+
     static final class ColCreationModes {
         private ColCreationModes() {
             // NB Util Class
@@ -161,9 +163,17 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         if (colCreationMode.equals(ColCreationModes.NEW_TABLE)) { // new table
             outSpec = createImgSpec();
         } else if (colCreationMode.equals(ColCreationModes.APPEND)) { // Append
-            outSpec = createAppendRearanger(inSpecs[0]).createSpec();
+            final ColumnRearranger rearranger = new ColumnRearranger(inSpecs[0]);
+            final DataColumnSpec newColSpec = new DataColumnSpecCreator(COL_NAME, ImgPlusCell.TYPE).createSpec();
+            final IlastikCellFactory fac = createResultCellFactory(newColSpec);
+            rearranger.append(fac);
+            outSpec = rearranger.createSpec();
         } else if (colCreationMode.equals(ColCreationModes.REPLACE)) { // Replace
-            outSpec = createReplaceRearanger(inSpecs[0]).createSpec();
+            final ColumnRearranger rearranger = new ColumnRearranger(inSpecs[0]);
+            final DataColumnSpec newColSpec = inSpecs[0].getColumnSpec(m_srcImgCol.getStringValue());
+            final IlastikCellFactory fac = createResultCellFactory(newColSpec);
+            rearranger.replace(fac, m_srcImgCol.getStringValue());
+            outSpec = rearranger.createSpec();
         } else {
             throw new IllegalArgumentException("The value of the column creation setting is invalid!");
         }
@@ -175,7 +185,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * @return
      */
     private DataTableSpec createImgSpec() {
-        return new DataTableSpec(new DataColumnSpecCreator("Result", ImgPlusCell.TYPE).createSpec());
+        return new DataTableSpec(new DataColumnSpecCreator(COL_NAME, ImgPlusCell.TYPE).createSpec());
     }
 
     @Override
@@ -256,11 +266,20 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 readResultImages(new ImgPlusCellFactory(exec), container);
                 container.close();
                 m_data = container.getTable();
-
             } else if (colCreationMode.equals(ColCreationModes.APPEND)) { // Append
-                m_data = exec.createColumnRearrangeTable(inData[0], createAppendRearanger(inData[0].getSpec()), exec);
+                final ColumnRearranger rearranger = new ColumnRearranger(inData[0].getSpec());
+                final DataColumnSpec newColSpec = new DataColumnSpecCreator(COL_NAME, ImgPlusCell.TYPE).createSpec();
+                final IlastikCellFactory fac = createResultCellFactory(newColSpec);
+                rearranger.append(fac);
+                m_data = exec.createColumnRearrangeTable(inData[0], rearranger, exec);
+                fac.closeImgOpener();
             } else if (colCreationMode.equals(ColCreationModes.REPLACE)) { // Replace
-                m_data = exec.createColumnRearrangeTable(inData[0], createReplaceRearanger(inData[0].getSpec()), exec);
+                final ColumnRearranger rearranger = new ColumnRearranger(inData[0].getSpec());
+                final DataColumnSpec newColSpec = inData[0].getSpec().getColumnSpec(m_srcImgCol.getStringValue());
+                final IlastikCellFactory fac = createResultCellFactory(newColSpec);
+                rearranger.replace(fac, m_srcImgCol.getStringValue());
+                m_data = exec.createColumnRearrangeTable(inData[0], rearranger, exec);
+                fac.closeImgOpener();
             } else {
                 throw new IllegalArgumentException("The value of the column creation setting is invalid!");
             }
@@ -276,59 +295,11 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     }
 
     /**
-     * @param listRowKey
-     * @param imgPlusCellFactory
-     * @return
-     */
-    private ColumnRearranger createReplaceRearanger(final DataTableSpec inSpec) {
-        final ColumnRearranger rearranger = new ColumnRearranger(inSpec);
-        final DataColumnSpec newColSpec = inSpec.getColumnSpec(m_srcImgCol.getStringValue());
-
-        // utility object that performs the calculation
-        rearranger.replace(createResultCellFactory(newColSpec), m_srcImgCol.getStringValue());
-        return rearranger;
-    }
-
-    /**
-     * @return
-     */
-    private ColumnRearranger createAppendRearanger(final DataTableSpec inSpec) {
-        final ColumnRearranger rearranger = new ColumnRearranger(inSpec);
-        final DataColumnSpec newColSpec = new DataColumnSpecCreator("Result", ImgPlusCell.TYPE).createSpec();
-
-        // utility object that performs the calculation
-        rearranger.append(createResultCellFactory(newColSpec));
-        return rearranger;
-    }
-
-    /**
      * @param newColSpec the column spec
      * @return a cellfactory that reads the result images from ilastik
      */
-    private SingleCellFactory createResultCellFactory(final DataColumnSpec newColSpec) {
-        return new SingleCellFactory(newColSpec) {
-            ScifioImgSource imgOpener = new ScifioImgSource();
-
-            @SuppressWarnings("unchecked")
-            @Override
-            // Get the scores weighted by the exploration factor
-            public DataCell getCell(final DataRow row) {
-                RowKey key = row.getKey();
-                Pair<String, String> names = m_outFiles.get(key);
-                DataCell cell;
-                try {
-                    String outfile = names.getFirst();
-                    String source = names.getSecond();
-                    ImgPlus<T> img = (ImgPlus<T>)imgOpener.getImg(outfile, 0);
-                    img.setSource(source);
-                    img.setName(key + "_result");
-                    cell = m_imgPlusCellFactory.createCell(img);
-                } catch (Exception e) {
-                    cell = new MissingCell("Error during execution: " + e);
-                }
-                return cell;
-            }
-        };
+    private IlastikCellFactory createResultCellFactory(final DataColumnSpec newColSpec) {
+        return new IlastikCellFactory(newColSpec);
     }
 
     /**
@@ -567,6 +538,42 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     public void setInternalTables(final BufferedDataTable[] tables) {
         m_data = tables[0];
 
+    }
+
+    class IlastikCellFactory extends SingleCellFactory {
+        private ScifioImgSource imgOpener;
+
+        /**
+         * @param newColSpec
+         */
+        public IlastikCellFactory(final DataColumnSpec newColSpec) {
+            super(newColSpec);
+            imgOpener = new ScifioImgSource();
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        // Get the scores weighted by the exploration factor
+        public DataCell getCell(final DataRow row) {
+            RowKey key = row.getKey();
+            Pair<String, String> names = m_outFiles.get(key);
+            DataCell cell;
+            try {
+                String outfile = names.getFirst();
+                String source = names.getSecond();
+                final ImgPlus<T> img = (ImgPlus<T>)imgOpener.getImg(outfile, 0);
+                img.setSource(source);
+                img.setName(key + "_result");
+                cell = m_imgPlusCellFactory.createCell(img);
+            } catch (Exception e) {
+                cell = new MissingCell("Error during execution: " + e);
+            }
+            return cell;
+        }
+
+        public void closeImgOpener() {
+            imgOpener.close();
+        }
     }
 
 }
