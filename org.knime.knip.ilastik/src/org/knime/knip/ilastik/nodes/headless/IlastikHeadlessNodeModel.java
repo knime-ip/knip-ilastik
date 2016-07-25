@@ -61,6 +61,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.knime.core.data.DataCell;
@@ -246,6 +247,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             }
 
             // Image Writer
+            exec.checkCanceled();
 
             // write image to temp folder as input for ilastik
             iW.writeImage(imgvalue.getImgPlus(), fileName, "TIFF (tif)", "Uncompressed", map);
@@ -253,7 +255,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
         try {
             // run ilastik and process images
-            boolean success = runIlastik(tmpDirPath, files);
+            boolean success = runIlastik(tmpDirPath, files, exec);
             if (!success) {
                 throw new IllegalStateException();
             }
@@ -350,12 +352,14 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     }
 
     /**
+     * @param exec
      * @throws IOException
      * @throws InterruptedException
+     * @throws CanceledExecutionException
      * @throws URISyntaxException
      */
-    private boolean runIlastik(final String tmpDirPath, final List<String> inFiles)
-            throws IOException, InterruptedException {
+    private boolean runIlastik(final String tmpDirPath, final List<String> inFiles, final ExecutionContext exec)
+            throws IOException, InterruptedException, CanceledExecutionException {
 
         // get path of ilastik
         final String path = IlastikPreferencePage.getPath();
@@ -388,8 +392,13 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         writeToKnimeConsole(p.getInputStream());
         writeToKnimeConsole(p.getErrorStream());
 
+
+        while(p.waitFor(500, TimeUnit.MILLISECONDS)) {
+            exec.checkCanceled();
+        }
+
         // 0 indicates successful execution
-        return p.waitFor() == 0;
+        return p.exitValue() == 0;
     }
 
     /**
