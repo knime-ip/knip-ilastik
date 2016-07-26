@@ -382,6 +382,8 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         inFiles.add(3, "--output_format=tif");
         inFiles.add(4, "--output_filename_format=".concat(tmpDirPath).concat("{nickname}_result"));
 
+        KNIPGateway.log().debug("Executing ilastik with " + String.join(", ", inFiles));
+
         // build process with project and images
         ProcessBuilder pB = new ProcessBuilder(inFiles);
 
@@ -392,10 +394,13 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         writeToKnimeConsole(p.getInputStream());
         writeToKnimeConsole(p.getErrorStream());
 
-
         while(p.waitFor(500, TimeUnit.MILLISECONDS)) {
             exec.checkCanceled();
         }
+
+        p.getErrorStream().close();
+        p.getInputStream().close();
+        p.getOutputStream().close();
 
         // 0 indicates successful execution
         return p.exitValue() == 0;
@@ -405,14 +410,26 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * Write stream to knime console
      *
      * @param in input stream
+     * @return
      * @throws IOException
      */
-    static void writeToKnimeConsole(final InputStream in) throws IOException {
-        BufferedReader bis = new BufferedReader(new InputStreamReader(in, Charset.defaultCharset()));
-        String line;
-        while ((line = bis.readLine()) != null) {
-            KNIPGateway.log().info(line);
-        }
+    static void writeToKnimeConsole(final InputStream in) {
+
+        new Thread(
+                   new Runnable() {
+                       @Override
+                       public void run() {
+                           BufferedReader bis = new BufferedReader(new InputStreamReader(in, Charset.defaultCharset()));
+                           String line;
+                           try {
+                               while ((line = bis.readLine()) != null) {
+                                   KNIPGateway.log().debug(line);
+                               }
+                           } catch (IOException ioe) {
+                               throw new RuntimeException("Could not read ilastik output", ioe); //FIXME not sure if this is a good idea
+                           }
+                       }
+                   }).start();
     }
 
     /**
