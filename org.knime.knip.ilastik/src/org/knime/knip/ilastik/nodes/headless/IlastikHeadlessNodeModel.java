@@ -359,7 +359,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * @throws URISyntaxException
      */
     private boolean runIlastik(final String tmpDirPath, final List<String> inFiles, final ExecutionContext exec)
-            throws IOException, InterruptedException, CanceledExecutionException {
+            throws IOException, InterruptedException {
 
         // get path of ilastik
         final String path = IlastikPreferencePage.getPath();
@@ -391,11 +391,16 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         Process p = pB.start();
 
         // write ilastik output to knime console
-        writeToKnimeConsole(p.getInputStream());
-        writeToKnimeConsole(p.getErrorStream());
+        redirectToKnimeConsole(p.getInputStream());
+        redirectToKnimeConsole(p.getErrorStream());
 
-        while(p.waitFor(500, TimeUnit.MILLISECONDS)) {
-            exec.checkCanceled();
+        try {
+            while(p.waitFor(500, TimeUnit.MILLISECONDS)) {
+                exec.checkCanceled();
+            }
+        } catch (CanceledExecutionException cee) {
+           KNIPGateway.log().error("Execution canceled, closing Ilastik now.");
+           p.destroy();
         }
 
         p.getErrorStream().close();
@@ -412,7 +417,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * @param in input stream
      * @throws IOException
      */
-    static void writeToKnimeConsole(final InputStream in) {
+    static void redirectToKnimeConsole(final InputStream in) {
 
         new Thread(
                    new Runnable() {
