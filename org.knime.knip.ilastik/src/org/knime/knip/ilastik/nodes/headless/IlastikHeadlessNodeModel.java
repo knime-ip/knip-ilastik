@@ -69,7 +69,6 @@ import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
-import org.knime.core.data.MissingCell;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.container.ColumnRearranger;
 import org.knime.core.data.container.DataContainer;
@@ -256,10 +255,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
         try {
             // run ilastik and process images
-            boolean success = runIlastik(tmpDirPath, files, exec);
-            if (!success) {
-                throw new IllegalStateException();
-            }
+            runIlastik(tmpDirPath, files, exec);
 
             String colCreationMode = m_colCreationModeModel.getStringValue();
 
@@ -359,7 +355,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * @throws CanceledExecutionException
      * @throws URISyntaxException
      */
-    private boolean runIlastik(final String tmpDirPath, final List<String> inFiles, final ExecutionContext exec)
+    private void runIlastik(final String tmpDirPath, final List<String> inFiles, final ExecutionContext exec)
             throws IOException, InterruptedException {
 
         // get path of ilastik
@@ -396,7 +392,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         redirectToKnimeConsole(p.getErrorStream(), DirectedLogServiceFactory.error());
 
         try {
-            while(p.waitFor(500, TimeUnit.MILLISECONDS)) {
+            while(! p.waitFor(500, TimeUnit.MILLISECONDS)) {
                 exec.checkCanceled();
             }
         } catch (CanceledExecutionException cee) {
@@ -404,12 +400,10 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
            p.destroy();
         }
 
-        p.getErrorStream().close();
-        p.getInputStream().close();
-        p.getOutputStream().close();
-
         // 0 indicates successful execution
-        return p.exitValue() == 0;
+        if (p.exitValue() != 0) {
+            throw new IllegalStateException("Execution of ilastik was not successful.");
+        }
     }
 
     /**
@@ -601,7 +595,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 img.setName(key + "_result");
                 cell = m_imgPlusCellFactory.createCell(img);
             } catch (Exception e) {
-                cell = new MissingCell("Error during execution: " + e);
+                throw new IllegalStateException("Error during execution: " + e, e);
             }
             return cell;
         }
