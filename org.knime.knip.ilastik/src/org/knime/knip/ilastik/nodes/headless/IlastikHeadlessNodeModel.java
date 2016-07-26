@@ -282,14 +282,14 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             } else {
                 throw new IllegalArgumentException("The value of the column creation setting is invalid!");
             }
-            cleanUp(tmpDir);
 
             return new BufferedDataTable[]{m_data};
         } catch (final Exception e) {
-            KNIPGateway.log()
-                    .error("Error when executing Ilastik. Please check the dimensionality of the input images.");
-            cleanUp(tmpDir);
+            KNIPGateway.log().error("Error when executing Ilastik.");
+
             throw new IllegalStateException(e);
+        } finally {
+            cleanUp(tmpDir);
         }
     }
 
@@ -413,7 +413,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * @param logService
      * @throws IOException
      */
-    static void redirectToKnimeConsole(final InputStream in, final DirectedLogService logger) {
+    static void redirectToKnimeConsole(final InputStream in, final DirectedLogService defaultLogger) {
 
         Thread t = new Thread() {
             @Override
@@ -423,7 +423,11 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
                 try (BufferedReader bis = new BufferedReader(new InputStreamReader(in, Charset.defaultCharset()))) {
                     while ((line = bis.readLine()) != null) {
-                        logger.log(line);
+                        if (line.contains("WARNING")) {
+                            KNIPGateway.log().warn(line);
+                        } else {
+                            defaultLogger.log(line);
+                        }
                     }
                 } catch (IOException ioe) {
                     throw new RuntimeException("Could not read ilastik output", ioe);
