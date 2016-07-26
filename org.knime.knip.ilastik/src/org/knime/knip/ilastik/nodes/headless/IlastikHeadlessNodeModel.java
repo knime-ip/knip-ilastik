@@ -381,6 +381,11 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         // build process with project and images
         ProcessBuilder pB = new ProcessBuilder(inFiles);
 
+        // limit cpu + memory usage
+        final Map<String, String> env = pB.environment();
+        env.put("LAZYFLOW_THREADS", System.getProperty(KNIMEConstants.PROPERTY_MAX_THREAD_COUNT));
+        env.put("LAZYFLOW_TOTAL_RAM_MB", String.format("%.0f", Runtime.getRuntime().maxMemory() / 1024 / 1024));
+
         // run ilastik
         Process p = pB.start();
 
