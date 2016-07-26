@@ -424,10 +424,10 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         Thread t = new Thread() {
             @Override
             public void run() {
-                BufferedReader bis = new BufferedReader(new InputStreamReader(in, Charset.defaultCharset()));
+
                 String line;
 
-                try {
+                try (BufferedReader bis = new BufferedReader(new InputStreamReader(in, Charset.defaultCharset()))) {
                     while ((line = bis.readLine()) != null) {
                         logger.log(line);
                     }
@@ -632,6 +632,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
     static class DirectedLogServiceFactory {
         private static ErrorLogService m_errorLogService;
+
         private static DebugLogService m_debugLogService;
 
         public static ErrorLogService error() {
