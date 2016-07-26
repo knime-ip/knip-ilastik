@@ -410,7 +410,6 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
      * Write stream to knime console
      *
      * @param in input stream
-     * @return
      * @throws IOException
      */
     static void writeToKnimeConsole(final InputStream in) {
