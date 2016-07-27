@@ -85,6 +85,8 @@ import org.knime.core.node.KNIMEConstants;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelInteger;
+import org.knime.core.node.defaultnodesettings.SettingsModelIntegerBounded;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.util.FileUtil;
 import org.knime.core.util.Pair;
@@ -134,6 +136,12 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     private final SettingsModelString m_srcImgCol = createImgColModel();
 
     private final SettingsModelString m_colCreationModeModel = createColCreationModeModel();
+
+    /**
+     * ilastik cpu / memory limits
+     */
+    private final SettingsModelInteger m_ilastikMaxMemory = createIlastikMaxMemoryModel();
+    private final SettingsModelIntegerBounded m_ilastikThreadCount = createIlastikThreadCountModel();
 
     /**
      * data table for table cell view
@@ -383,9 +391,9 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
         // limit cpu + memory usage
         final Map<String, String> env = pB.environment();
-        env.put("LAZYFLOW_THREADS", String.valueOf(KNIMEConstants.GLOBAL_THREAD_POOL.getMaxThreads()));
-        env.put("LAZYFLOW_TOTAL_RAM_MB", String.valueOf(Runtime.getRuntime().maxMemory() / 1024 / 1024));
-		
+        env.put("LAZYFLOW_THREADS", String.valueOf(m_ilastikThreadCount.getIntValue()));
+        env.put("LAZYFLOW_TOTAL_RAM_MB", String.valueOf(m_ilastikMaxMemory.getIntValue()));
+
         // run ilastik
         Process p = pB.start();
 
@@ -440,12 +448,25 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     }
 
     /**
-     *
-     * @return SettingsModelString for source image column.
+     * @return SettingsModelString for max amount of memory (mb) for ilastik
      */
-    public static SettingsModelString createImgColModel() {
-        return new SettingsModelString("src_image", "");
+    public static SettingsModelInteger createIlastikMaxMemoryModel() {
+        return new SettingsModelInteger("ilastik_max_memory", (int) (Runtime.getRuntime().maxMemory() / 1024L / 1024L));
     }
+
+    /**
+    * @return SettingsModelString for ilastik thread count
+    */
+   public static SettingsModelIntegerBounded createIlastikThreadCountModel() {
+       return new SettingsModelIntegerBounded("ilastik_thread_count", KNIMEConstants.GLOBAL_THREAD_POOL.getMaxThreads(), 1, Integer.MAX_VALUE);
+   }
+
+   /**
+   * @return SettingsModelString for source image column.
+   */
+  public static SettingsModelString createImgColModel() {
+      return new SettingsModelString("src_image", "");
+  }
 
     /**
      * @return {@link SettingsModelString} for the column creation mode.
@@ -472,6 +493,9 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_pathToIlastikProjectFileModel.validateSettings(settings);
         m_srcImgCol.validateSettings(settings);
+        m_ilastikMaxMemory.validateSettings(settings);
+        m_ilastikThreadCount.validateSettings(settings);
+
         try {
             m_colCreationModeModel.validateSettings(settings);
         } catch (InvalidSettingsException e) {
@@ -491,6 +515,9 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_pathToIlastikProjectFileModel.loadSettingsFrom(settings);
         m_srcImgCol.loadSettingsFrom(settings);
+        m_ilastikMaxMemory.loadSettingsFrom(settings);
+        m_ilastikThreadCount.loadSettingsFrom(settings);
+
         try {
             m_colCreationModeModel.loadSettingsFrom(settings);
         } catch (InvalidSettingsException e) {
