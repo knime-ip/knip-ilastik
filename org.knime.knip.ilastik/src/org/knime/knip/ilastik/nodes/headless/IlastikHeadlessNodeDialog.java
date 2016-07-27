@@ -84,11 +84,11 @@ public class IlastikHeadlessNodeDialog extends DefaultNodeSettingsPane {
 
         closeCurrentGroup();
 
-        createNewGroup("Memory / CPU limits");
+        createNewGroup("Memory / CPU Limits");
         addDialogComponent(new DialogComponentNumber(IlastikHeadlessNodeModel.createIlastikThreadCountModel(),
-                "Ilastik: thread count", 1));
+                "Ilastik thread count", 1));
         addDialogComponent(new DialogComponentNumber(IlastikHeadlessNodeModel.createIlastikMaxMemoryModel(),
-                "Ilastik: Max memory (MB)", 1));
+                "Ilastik max memory (MB)", 1));
 
         closeCurrentGroup();
 
