@@ -82,6 +82,7 @@ import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.KNIMEConstants;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
@@ -151,6 +152,12 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     private Map<RowKey, Pair<String, String>> m_outFiles;
 
     private ImgPlusCellFactory m_imgPlusCellFactory;
+
+    /**
+     * logger
+     */
+
+    private final NodeLogger LOGGER = NodeLogger.getLogger(NodeModel.class);
 
     /**
      * @param nrInDataPorts
@@ -493,8 +500,23 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_pathToIlastikProjectFileModel.validateSettings(settings);
         m_srcImgCol.validateSettings(settings);
-        m_ilastikMaxMemory.validateSettings(settings);
-        m_ilastikThreadCount.validateSettings(settings);
+
+        try {
+            m_ilastikMaxMemory.validateSettings(settings);
+        } catch (InvalidSettingsException e) {
+            LOGGER.warn("Problems occurred loading the settings " + m_ilastikMaxMemory.toString() + ": "
+                    + e.getLocalizedMessage());
+            setWarningMessage("Problems occurred while loading settings.");
+        }
+
+        try {
+            m_ilastikThreadCount.validateSettings(settings);
+        } catch (InvalidSettingsException e) {
+            LOGGER.warn("Problems occurred loading the settings " + m_ilastikThreadCount.toString() + ": "
+                    + e.getLocalizedMessage());
+            setWarningMessage("Problems occurred while loading settings.");
+        }
+
 
         try {
             m_colCreationModeModel.validateSettings(settings);
@@ -515,8 +537,22 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_pathToIlastikProjectFileModel.loadSettingsFrom(settings);
         m_srcImgCol.loadSettingsFrom(settings);
-        m_ilastikMaxMemory.loadSettingsFrom(settings);
-        m_ilastikThreadCount.loadSettingsFrom(settings);
+
+        try {
+            m_ilastikMaxMemory.validateSettings(settings);
+        } catch (InvalidSettingsException e) {
+            LOGGER.warn("Problems occurred loading the settings " + m_ilastikMaxMemory.toString() + ": "
+                    + e.getLocalizedMessage());
+            setWarningMessage("Problems occurred while loading settings.");
+        }
+
+        try {
+            m_ilastikThreadCount.validateSettings(settings);
+        } catch (InvalidSettingsException e) {
+            LOGGER.warn("Problems occurred loading the settings " + m_ilastikThreadCount.toString() + ": "
+                    + e.getLocalizedMessage());
+            setWarningMessage("Problems occurred while loading settings.");
+        }
 
         try {
             m_colCreationModeModel.loadSettingsFrom(settings);
