@@ -678,7 +678,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 img.setName(key + "_result");
                 cell = m_imgPlusCellFactory.createCell(img);
             } catch (Exception e) {
-                cell = new MissingCell("Error during execution: " + e);
+                throw new IllegalStateException("Error during execution: " + e, e);
             }
             return cell;
         }
