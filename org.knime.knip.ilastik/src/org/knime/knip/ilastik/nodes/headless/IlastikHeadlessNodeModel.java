@@ -327,7 +327,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             } catch (Exception e) {
                 imgOpener.close();
                 throw new IllegalStateException(
-                        "Can't read image in Ilastik Headless Node at RowId: " + key + " : " + e);
+                        "Can't read image in Ilastik Headless Node at RowId: " + key + " : " + e, e);
             }
         });
         imgOpener.close();
@@ -366,7 +366,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             outpath = FileUtil.resolveToPath(FileUtil.toURL(m_pathToIlastikProjectFileModel.getStringValue()))
                     .toAbsolutePath().toString();
         } catch (InvalidPathException | URISyntaxException e) {
-            throw new IllegalArgumentException("The Path to the project file could not be resolved: " + e);
+            throw new IllegalArgumentException("The Path to the project file could not be resolved: " + e, e);
         }
         if (outpath == null) {
             throw new IllegalArgumentException("The Path to the project file could not be resolved.");
@@ -612,6 +612,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
     interface DirectedLogService {
         public void log(Object arg0);
+        public void log(Object arg0, Throwable arg1);
     }
 
     static class ErrorLogService implements DirectedLogService {
@@ -619,6 +620,12 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         public void log(final Object arg0) {
             KNIPGateway.log().error(arg0);
         }
+
+        @Override
+        public void log(final Object arg0, final Throwable arg1) {
+            KNIPGateway.log().error(arg0);
+        }
+
     }
 
     static class DebugLogService implements DirectedLogService {
@@ -626,6 +633,12 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         public void log(final Object arg0) {
             KNIPGateway.log().debug(arg0);
         }
+
+        @Override
+        public void log(final Object arg0, final Throwable arg1) {
+            KNIPGateway.log().debug(arg0);
+        }
+
     }
 
     static class DirectedLogServiceFactory {
