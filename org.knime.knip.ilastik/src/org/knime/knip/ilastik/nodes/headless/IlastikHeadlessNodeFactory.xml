@@ -19,6 +19,7 @@
 			given in "Preferences -> KNIME -> Image Processing Plugin -> Ilastik -> Path to Ilastik installation".
 		</intro>
 		<option name="Path to Ilastik project file">The ilastik project to be executed.</option>
+		<option name="Memory / CPU limits">Maximum of memory and threads allowed for Ilastik alone.</option>
 		<option name="Column Selection">Column containing the images to be processed.</option>
 	</fullDescription>
 	<ports>

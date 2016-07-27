@@ -69,6 +69,7 @@ import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.MissingCell;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.container.ColumnRearranger;
 import org.knime.core.data.container.DataContainer;
@@ -82,9 +83,12 @@ import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.KNIMEConstants;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelInteger;
+import org.knime.core.node.defaultnodesettings.SettingsModelIntegerBounded;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.util.FileUtil;
 import org.knime.core.util.Pair;
@@ -99,6 +103,8 @@ import org.knime.knip.io.nodes.imgwriter2.ImgWriter2;
 import org.scijava.log.DefaultUncaughtExceptionHandler;
 
 import net.imagej.ImgPlus;
+import net.imagej.ImgPlusMetadata;
+import net.imagej.axis.Axes;
 import net.imglib2.type.numeric.RealType;
 
 /**
@@ -137,6 +143,12 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     private final SettingsModelString m_colCreationModeModel = createColCreationModeModel();
 
     /**
+     * ilastik cpu / memory limits
+     */
+    private final SettingsModelInteger m_ilastikMaxMemory = createIlastikMaxMemoryModel();
+    private final SettingsModelIntegerBounded m_ilastikThreadCount = createIlastikThreadCountModel();
+
+    /**
      * data table for table cell view
      */
     private BufferedDataTable m_data;
@@ -144,6 +156,12 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     private Map<RowKey, Pair<String, String>> m_outFiles;
 
     private ImgPlusCellFactory m_imgPlusCellFactory;
+
+    /**
+     * logger
+     */
+
+    private final NodeLogger LOGGER = NodeLogger.getLogger(NodeModel.class);
 
     /**
      * @param nrInDataPorts
@@ -240,10 +258,18 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             // store in-image name in list
             files.add(fileName);
 
-            // map for dimensions
-            final int[] map = new int[imgvalue.getDimensions().length];
+            // map for dimensions ZCT. -1 means non-existent
+            final ImgPlusMetadata imgMeta = imgvalue.getMetadata();
+            final int[] map = new int[] {
+                    imgMeta.dimensionIndex(Axes.Z),
+                    imgMeta.dimensionIndex(Axes.CHANNEL),
+                    imgMeta.dimensionIndex(Axes.TIME)
+            };
+
             for (int i = 0; i < map.length; i++) {
-                map[i] = i;
+                if (map[i] != -1) {
+                    map[i] -= 2; // substract 2 as we start _behind_ XY
+                }
             }
 
             // Image Writer
@@ -327,7 +353,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             } catch (Exception e) {
                 imgOpener.close();
                 throw new IllegalStateException(
-                        "Can't read image in Ilastik Headless Node at RowId: " + key + " : " + e);
+                        "Can't read image in Ilastik Headless Node at RowId: " + key + " : " + e, e);
             }
         });
         imgOpener.close();
@@ -366,7 +392,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             outpath = FileUtil.resolveToPath(FileUtil.toURL(m_pathToIlastikProjectFileModel.getStringValue()))
                     .toAbsolutePath().toString();
         } catch (InvalidPathException | URISyntaxException e) {
-            throw new IllegalArgumentException("The Path to the project file could not be resolved: " + e);
+            throw new IllegalArgumentException("The Path to the project file could not be resolved: " + e, e);
         }
         if (outpath == null) {
             throw new IllegalArgumentException("The Path to the project file could not be resolved.");
@@ -386,8 +412,8 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
         // limit cpu + memory usage
         final Map<String, String> env = pB.environment();
-        env.put("LAZYFLOW_THREADS", System.getProperty(KNIMEConstants.PROPERTY_MAX_THREAD_COUNT));
-        env.put("LAZYFLOW_TOTAL_RAM_MB", String.format("%.0f", Runtime.getRuntime().maxMemory() / 1024 / 1024));
+        env.put("LAZYFLOW_THREADS", String.valueOf(m_ilastikThreadCount.getIntValue()));
+        env.put("LAZYFLOW_TOTAL_RAM_MB", String.valueOf(m_ilastikMaxMemory.getIntValue()));
 
         // run ilastik
         Process p = pB.start();
@@ -473,12 +499,25 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     }
 
     /**
-     *
-     * @return SettingsModelString for source image column.
+     * @return SettingsModelString for max amount of memory (mb) for ilastik
      */
-    public static SettingsModelString createImgColModel() {
-        return new SettingsModelString("src_image", "");
+    public static SettingsModelInteger createIlastikMaxMemoryModel() {
+        return new SettingsModelInteger("ilastik_max_memory", (int) (Runtime.getRuntime().maxMemory() / 1024L / 1024L));
     }
+
+    /**
+    * @return SettingsModelString for ilastik thread count
+    */
+   public static SettingsModelIntegerBounded createIlastikThreadCountModel() {
+       return new SettingsModelIntegerBounded("ilastik_thread_count", KNIMEConstants.GLOBAL_THREAD_POOL.getMaxThreads(), 1, Integer.MAX_VALUE);
+   }
+
+   /**
+   * @return SettingsModelString for source image column.
+   */
+  public static SettingsModelString createImgColModel() {
+      return new SettingsModelString("src_image", "");
+  }
 
     /**
      * @return {@link SettingsModelString} for the column creation mode.
@@ -505,6 +544,24 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_pathToIlastikProjectFileModel.validateSettings(settings);
         m_srcImgCol.validateSettings(settings);
+
+        try {
+            m_ilastikMaxMemory.validateSettings(settings);
+        } catch (InvalidSettingsException e) {
+            LOGGER.warn("Problems occurred loading the settings " + m_ilastikMaxMemory.toString() + ": "
+                    + e.getLocalizedMessage());
+            setWarningMessage("Problems occurred while loading settings.");
+        }
+
+        try {
+            m_ilastikThreadCount.validateSettings(settings);
+        } catch (InvalidSettingsException e) {
+            LOGGER.warn("Problems occurred loading the settings " + m_ilastikThreadCount.toString() + ": "
+                    + e.getLocalizedMessage());
+            setWarningMessage("Problems occurred while loading settings.");
+        }
+
+
         try {
             m_colCreationModeModel.validateSettings(settings);
         } catch (InvalidSettingsException e) {
@@ -524,6 +581,23 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_pathToIlastikProjectFileModel.loadSettingsFrom(settings);
         m_srcImgCol.loadSettingsFrom(settings);
+
+        try {
+            m_ilastikMaxMemory.validateSettings(settings);
+        } catch (InvalidSettingsException e) {
+            LOGGER.warn("Problems occurred loading the settings " + m_ilastikMaxMemory.toString() + ": "
+                    + e.getLocalizedMessage());
+            setWarningMessage("Problems occurred while loading settings.");
+        }
+
+        try {
+            m_ilastikThreadCount.validateSettings(settings);
+        } catch (InvalidSettingsException e) {
+            LOGGER.warn("Problems occurred loading the settings " + m_ilastikThreadCount.toString() + ": "
+                    + e.getLocalizedMessage());
+            setWarningMessage("Problems occurred while loading settings.");
+        }
+
         try {
             m_colCreationModeModel.loadSettingsFrom(settings);
         } catch (InvalidSettingsException e) {
@@ -604,7 +678,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 img.setName(key + "_result");
                 cell = m_imgPlusCellFactory.createCell(img);
             } catch (Exception e) {
-                throw new IllegalStateException("Error during execution: " + e, e);
+                cell = new MissingCell("Error during execution: " + e);
             }
             return cell;
         }
@@ -617,6 +691,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
     interface DirectedLogService {
         public void log(Object arg0);
+        public void log(Object arg0, Throwable arg1);
     }
 
     static class ErrorLogService implements DirectedLogService {
@@ -624,6 +699,12 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         public void log(final Object arg0) {
             KNIPGateway.log().error(arg0);
         }
+
+        @Override
+        public void log(final Object arg0, final Throwable arg1) {
+            KNIPGateway.log().error(arg0);
+        }
+
     }
 
     static class DebugLogService implements DirectedLogService {
@@ -631,6 +712,12 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         public void log(final Object arg0) {
             KNIPGateway.log().debug(arg0);
         }
+
+        @Override
+        public void log(final Object arg0, final Throwable arg1) {
+            KNIPGateway.log().debug(arg0);
+        }
+
     }
 
     static class DirectedLogServiceFactory {
