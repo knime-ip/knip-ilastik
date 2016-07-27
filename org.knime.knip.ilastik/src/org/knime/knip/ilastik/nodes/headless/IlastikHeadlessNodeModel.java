@@ -402,7 +402,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         inFiles.add(0, path);
         inFiles.add(1, "--headless");
         inFiles.add(2, "--project=".concat(outpath));
-        inFiles.add(3, "--output_format=tif");
+        inFiles.add(3, "--output_format=multipage tiff");
         inFiles.add(4, "--output_filename_format=".concat(tmpDirPath).concat("{nickname}_result"));
 
         KNIPGateway.log().debug("Executing ilastik with " + String.join(", ", inFiles));
@@ -678,7 +678,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 img.setName(key + "_result");
                 cell = m_imgPlusCellFactory.createCell(img);
             } catch (Exception e) {
-                cell = new MissingCell("Error during execution: " + e);
+                throw new IllegalStateException("Error during execution: " + e, e);
             }
             return cell;
         }
