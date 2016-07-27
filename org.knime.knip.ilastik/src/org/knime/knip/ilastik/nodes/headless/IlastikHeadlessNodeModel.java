@@ -61,6 +61,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.knime.core.data.DataCell;
@@ -68,7 +69,6 @@ import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
-import org.knime.core.data.MissingCell;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.container.ColumnRearranger;
 import org.knime.core.data.container.DataContainer;
@@ -99,6 +99,7 @@ import org.knime.knip.core.KNIPGateway;
 import org.knime.knip.ilastik.nodes.IlastikPreferencePage;
 import org.knime.knip.io.ScifioImgSource;
 import org.knime.knip.io.nodes.imgwriter2.ImgWriter2;
+import org.scijava.log.DefaultUncaughtExceptionHandler;
 
 import net.imagej.ImgPlus;
 import net.imglib2.type.numeric.RealType;
@@ -261,6 +262,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             }
 
             // Image Writer
+            exec.checkCanceled();
 
             // write image to temp folder as input for ilastik
             iW.writeImage(imgvalue.getImgPlus(), fileName, "TIFF (tif)", "Uncompressed", map);
@@ -268,10 +270,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
 
         try {
             // run ilastik and process images
-            boolean success = runIlastik(tmpDirPath, files);
-            if (!success) {
-                throw new IllegalStateException();
-            }
+            runIlastik(tmpDirPath, files, exec);
 
             String colCreationMode = m_colCreationModeModel.getStringValue();
 
@@ -298,14 +297,14 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             } else {
                 throw new IllegalArgumentException("The value of the column creation setting is invalid!");
             }
-            cleanUp(tmpDir);
 
             return new BufferedDataTable[]{m_data};
         } catch (final Exception e) {
-            KNIPGateway.log()
-                    .error("Error when executing Ilastik. Please check the dimensionality of the input images.");
-            cleanUp(tmpDir);
+            KNIPGateway.log().error("Error when executing Ilastik.");
+
             throw new IllegalStateException(e);
+        } finally {
+            cleanUp(tmpDir);
         }
     }
 
@@ -343,7 +342,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             } catch (Exception e) {
                 imgOpener.close();
                 throw new IllegalStateException(
-                        "Can't read image in Ilastik Headless Node at RowId: " + key + " : " + e);
+                        "Can't read image in Ilastik Headless Node at RowId: " + key + " : " + e, e);
             }
         });
         imgOpener.close();
@@ -365,11 +364,13 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
     }
 
     /**
+     * @param exec
      * @throws IOException
      * @throws InterruptedException
+     * @throws CanceledExecutionException
      * @throws URISyntaxException
      */
-    private boolean runIlastik(final String tmpDirPath, final List<String> inFiles)
+    private void runIlastik(final String tmpDirPath, final List<String> inFiles, final ExecutionContext exec)
             throws IOException, InterruptedException {
 
         // get path of ilastik
@@ -380,7 +381,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             outpath = FileUtil.resolveToPath(FileUtil.toURL(m_pathToIlastikProjectFileModel.getStringValue()))
                     .toAbsolutePath().toString();
         } catch (InvalidPathException | URISyntaxException e) {
-            throw new IllegalArgumentException("The Path to the project file could not be resolved: " + e);
+            throw new IllegalArgumentException("The Path to the project file could not be resolved: " + e, e);
         }
         if (outpath == null) {
             throw new IllegalArgumentException("The Path to the project file could not be resolved.");
@@ -392,6 +393,8 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         inFiles.add(2, "--project=".concat(outpath));
         inFiles.add(3, "--output_format=tif");
         inFiles.add(4, "--output_filename_format=".concat(tmpDirPath).concat("{nickname}_result"));
+
+        KNIPGateway.log().debug("Executing ilastik with " + String.join(", ", inFiles));
 
         // build process with project and images
         ProcessBuilder pB = new ProcessBuilder(inFiles);
@@ -405,25 +408,55 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
         Process p = pB.start();
 
         // write ilastik output to knime console
-        writeToKnimeConsole(p.getInputStream());
-        writeToKnimeConsole(p.getErrorStream());
+        redirectToKnimeConsole(p.getInputStream(), DirectedLogServiceFactory.debug());
+        redirectToKnimeConsole(p.getErrorStream(), DirectedLogServiceFactory.error());
+
+        try {
+            while(! p.waitFor(500, TimeUnit.MILLISECONDS)) {
+                exec.checkCanceled();
+            }
+        } catch (CanceledExecutionException cee) {
+           KNIPGateway.log().error("Execution canceled, closing Ilastik now.");
+           p.destroy();
+        }
 
         // 0 indicates successful execution
-        return p.waitFor() == 0;
+        if (p.exitValue() != 0) {
+            throw new IllegalStateException("Execution of ilastik was not successful.");
+        }
     }
 
     /**
      * Write stream to knime console
      *
      * @param in input stream
+     * @param logService
      * @throws IOException
      */
-    static void writeToKnimeConsole(final InputStream in) throws IOException {
-        BufferedReader bis = new BufferedReader(new InputStreamReader(in, Charset.defaultCharset()));
-        String line;
-        while ((line = bis.readLine()) != null) {
-            KNIPGateway.log().info(line);
-        }
+    static void redirectToKnimeConsole(final InputStream in, final DirectedLogService defaultLogger) {
+
+        Thread t = new Thread() {
+            @Override
+            public void run() {
+
+                String line;
+
+                try (BufferedReader bis = new BufferedReader(new InputStreamReader(in, Charset.defaultCharset()))) {
+                    while ((line = bis.readLine()) != null) {
+                        if (line.contains("WARNING")) {
+                            KNIPGateway.log().warn(line);
+                        } else {
+                            defaultLogger.log(line);
+                        }
+                    }
+                } catch (IOException ioe) {
+                    throw new RuntimeException("Could not read ilastik output", ioe);
+                }
+            }
+        };
+
+        t.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(KNIPGateway.log()));
+        t.start();
     }
 
     /**
@@ -634,13 +667,65 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 img.setName(key + "_result");
                 cell = m_imgPlusCellFactory.createCell(img);
             } catch (Exception e) {
-                cell = new MissingCell("Error during execution: " + e);
+                throw new IllegalStateException("Error during execution: " + e, e);
             }
             return cell;
         }
 
         public void closeImgOpener() {
             imgOpener.close();
+        }
+    }
+
+
+    interface DirectedLogService {
+        public void log(Object arg0);
+        public void log(Object arg0, Throwable arg1);
+    }
+
+    static class ErrorLogService implements DirectedLogService {
+        @Override
+        public void log(final Object arg0) {
+            KNIPGateway.log().error(arg0);
+        }
+
+        @Override
+        public void log(final Object arg0, final Throwable arg1) {
+            KNIPGateway.log().error(arg0);
+        }
+
+    }
+
+    static class DebugLogService implements DirectedLogService {
+        @Override
+        public void log(final Object arg0) {
+            KNIPGateway.log().debug(arg0);
+        }
+
+        @Override
+        public void log(final Object arg0, final Throwable arg1) {
+            KNIPGateway.log().debug(arg0);
+        }
+
+    }
+
+    static class DirectedLogServiceFactory {
+        private static ErrorLogService m_errorLogService;
+
+        private static DebugLogService m_debugLogService;
+
+        public static ErrorLogService error() {
+            if (m_errorLogService == null) {
+                m_errorLogService = new ErrorLogService();
+            }
+            return m_errorLogService;
+        }
+
+        public static DebugLogService debug() {
+            if (m_debugLogService == null) {
+                m_debugLogService = new DebugLogService();
+            }
+            return m_debugLogService;
         }
     }
 
