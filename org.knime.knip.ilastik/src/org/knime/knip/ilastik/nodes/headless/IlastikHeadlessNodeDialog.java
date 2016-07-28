@@ -50,6 +50,7 @@
 package org.knime.knip.ilastik.nodes.headless;
 
 import org.knime.core.node.defaultnodesettings.DefaultNodeSettingsPane;
+import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
 import org.knime.core.node.defaultnodesettings.DialogComponentColumnNameSelection;
 import org.knime.core.node.defaultnodesettings.DialogComponentFileChooser;
 import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
@@ -81,7 +82,6 @@ public class IlastikHeadlessNodeDialog extends DefaultNodeSettingsPane {
         createNewGroup("Path to Ilastik Project File");
         addDialogComponent(new DialogComponentFileChooser(
                 IlastikHeadlessNodeModel.createPathToIlastikProjectFileModel(), "test2", ".ilp"));
-
         closeCurrentGroup();
 
         createNewGroup("Memory / CPU Limits");
@@ -89,7 +89,11 @@ public class IlastikHeadlessNodeDialog extends DefaultNodeSettingsPane {
                 "Ilastik thread count", 1));
         addDialogComponent(new DialogComponentNumber(IlastikHeadlessNodeModel.createIlastikMaxMemoryModel(),
                 "Ilastik max memory (MB)", 1));
+        closeCurrentGroup();
 
+        createNewGroup("TIFF Bugfix");
+        addDialogComponent(new DialogComponentBoolean(IlastikHeadlessNodeModel.createOutputDimensionsOverrideModel(),
+                "Override result .tiff dimensions from XYT to XYZC?"));
         closeCurrentGroup();
 
         createNewGroup("Column Selection");
