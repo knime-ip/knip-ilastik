@@ -103,6 +103,7 @@ import org.knime.knip.io.nodes.imgwriter2.ImgWriter2;
 import org.scijava.log.DefaultUncaughtExceptionHandler;
 
 import net.imagej.ImgPlus;
+import net.imagej.ImgPlusMetadata;
 import net.imagej.axis.Axes;
 import net.imagej.axis.CalibratedAxis;
 import net.imagej.axis.DefaultLinearAxis;
