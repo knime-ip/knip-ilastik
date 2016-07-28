@@ -733,11 +733,18 @@ public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> ext
      * @return imgPlus ilastikImg split from XYT to XYZC
      */
     protected ImgPlus<T> overrideTimeDimension(final ImgPlus<T> ilastikImg, final ImgPlusValue<?> imgInValue) {
+
+        if (ilastikImg.dimensionIndex(Axes.CHANNEL) != -1) {
+            KNIPGateway.log().error("The ilastik output already has a Channel axis. Skipping override.");
+            return ilastikImg;
+        }
+
         ImgPlus<T> imgOut;
 
         List<RandomAccessibleInterval<T>> ztStack = new ArrayList<>();
 
         int tIdx = ilastikImg.dimensionIndex(Axes.TIME);
+
         long tSize = ilastikImg.dimension(tIdx);
 
         final long[] imgInDims = imgInValue.getDimensions();
