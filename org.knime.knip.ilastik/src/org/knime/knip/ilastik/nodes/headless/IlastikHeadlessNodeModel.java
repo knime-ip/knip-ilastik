@@ -69,6 +69,7 @@ import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.MissingCell;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.container.ColumnRearranger;
 import org.knime.core.data.container.DataContainer;
@@ -667,7 +668,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
                 img.setName(key + "_result");
                 cell = m_imgPlusCellFactory.createCell(img);
             } catch (Exception e) {
-                throw new IllegalStateException("Error during execution: " + e, e);
+                cell = new MissingCell("Error during execution: " + e);
             }
             return cell;
         }
