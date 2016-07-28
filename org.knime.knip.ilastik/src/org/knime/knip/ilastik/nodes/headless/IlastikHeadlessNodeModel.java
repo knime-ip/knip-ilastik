@@ -55,7 +55,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -124,6 +126,11 @@ import net.imglib2.view.Views;
  */
 public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> extends NodeModel
         implements BufferedDataTableHolder {
+
+    /**
+     *
+     */
+    private static final String RESULT_IMG_SUFFIX = "_result";
 
     private static final String COL_NAME = "Result";
 
@@ -260,7 +267,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> ext
 
             // store out-image name in iterable
             // store in map
-            String resultFileName = fileName + "_result.tif";
+            String resultFileName = fileName + RESULT_IMG_SUFFIX + ".tiff";
 
             m_outFiles.put(row.getKey(), resultFileName);
 
@@ -388,6 +395,10 @@ public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> ext
 
         final String path = m_outFiles.get(key);
 
+        if (!Files.isRegularFile(Paths.get(path))) {
+            throw new InvalidPathException(path, "Ilastik output file does not exist");
+        }
+
         final ImgPlus<T> img = (ImgPlus<T>)imgOpener.getImg(path, 0);
         final ImgPlus<T> imgOut =
                 m_outputDimensionsOverride.getBooleanValue() ? overrideTimeDimension(img, imgInValue) : img;
@@ -443,8 +454,8 @@ public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> ext
         inFiles.add(0, path);
         inFiles.add(1, "--headless");
         inFiles.add(2, "--project=".concat(outpath));
-        inFiles.add(3, "--output_format=tif");
-        inFiles.add(4, "--output_filename_format=".concat(tmpDirPath).concat("{nickname}_result"));
+        inFiles.add(3, "--output_format=multipage tiff");
+        inFiles.add(4, "--output_filename_format=".concat(tmpDirPath).concat("{nickname}" + RESULT_IMG_SUFFIX));
 
         KNIPGateway.log().debug("Executing ilastik with " + String.join(", ", inFiles));
 
@@ -725,7 +736,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> ext
             imgOut.setAxis(axis, d);
         }
 
-        imgOut.setAxis(new DefaultLinearAxis(Axes.CHANNEL), imgInAxes.length + 1);
+        imgOut.setAxis(new DefaultLinearAxis(Axes.CHANNEL), imgInAxes.length);
 
         return imgOut;
     }
