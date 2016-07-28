@@ -54,6 +54,7 @@ import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
 import org.knime.knip.base.nodes.view.TableCellViewNodeView;
 
+import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 /**
@@ -61,7 +62,7 @@ import net.imglib2.type.numeric.RealType;
  * @author Andreas Graumann, University of Konstanz
  * @param <T>
  */
-public class IlastikHeadlessNodeFactory<T extends RealType<T>> extends NodeFactory<IlastikHeadlessNodeModel<T>> {
+public class IlastikHeadlessNodeFactory<T extends RealType<T> & NativeType<T>> extends NodeFactory<IlastikHeadlessNodeModel<T>> {
 
     /**
      * {@inheritDoc}
