@@ -103,6 +103,8 @@ import org.knime.knip.io.nodes.imgwriter2.ImgWriter2;
 import org.scijava.log.DefaultUncaughtExceptionHandler;
 
 import net.imagej.ImgPlus;
+import net.imagej.ImgPlusMetadata;
+import net.imagej.axis.Axes;
 import net.imglib2.type.numeric.RealType;
 
 /**
@@ -256,10 +258,18 @@ public class IlastikHeadlessNodeModel<T extends RealType<T>> extends NodeModel i
             // store in-image name in list
             files.add(fileName);
 
-            // map for dimensions
-            final int[] map = new int[imgvalue.getDimensions().length];
+            // map for dimensions ZCT. -1 means non-existent
+            final ImgPlusMetadata imgMeta = imgvalue.getMetadata();
+            final int[] map = new int[] {
+                    imgMeta.dimensionIndex(Axes.Z),
+                    imgMeta.dimensionIndex(Axes.CHANNEL),
+                    imgMeta.dimensionIndex(Axes.TIME)
+            };
+
             for (int i = 0; i < map.length; i++) {
-                map[i] = i;
+                if (map[i] != -1) {
+                    map[i] -= 2; // substract 2 as we start _behind_ XY
+                }
             }
 
             // Image Writer
