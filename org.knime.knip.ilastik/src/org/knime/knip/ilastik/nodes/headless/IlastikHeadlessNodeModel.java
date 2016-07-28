@@ -286,6 +286,12 @@ public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> ext
                     imgMeta.dimensionIndex(Axes.TIME)
             };
 
+            for (int i = 0; i < map.length; i++) {
+                if (map[i] != -1) {
+                    map[i] -= 2; // substract 2 as we start _behind_ XY
+                }
+            }
+
             // Image Writer
             exec.checkCanceled();
 
