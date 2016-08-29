@@ -743,8 +743,9 @@ public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> ext
      */
     protected ImgPlus<T> overrideTimeDimension(final ImgPlus<T> ilastikImg, final ImgPlusValue<?> imgInValue) {
 
-        if (ilastikImg.dimensionIndex(Axes.CHANNEL) != -1 || ilastikImg.numDimensions() == 2) {
-            KNIPGateway.log().error("The ilastik output already has a Channel axis or is 2 dimensional. Skipping override.");
+        if (ilastikImg.dimensionIndex(Axes.CHANNEL) != -1 || imgInValue.getMetadata().dimensionIndex(Axes.Z) == -1) {
+            KNIPGateway.log()
+                    .debug("The ilastik output already has a Channel axis or is 2 dimensional. Skipping override.");
             return ilastikImg;
         }
 
