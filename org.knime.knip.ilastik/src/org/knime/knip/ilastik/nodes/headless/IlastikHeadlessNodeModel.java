@@ -286,11 +286,8 @@ public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> ext
 
             // map for dimensions ZCT. -1 means non-existent
             final ImgPlusMetadata imgMeta = imgvalue.getMetadata();
-            final int[] map = new int[] {
-                    imgMeta.dimensionIndex(Axes.Z),
-                    imgMeta.dimensionIndex(Axes.CHANNEL),
-                    imgMeta.dimensionIndex(Axes.TIME)
-            };
+            final int[] map = new int[]{imgMeta.dimensionIndex(Axes.Z), imgMeta.dimensionIndex(Axes.CHANNEL),
+                    imgMeta.dimensionIndex(Axes.TIME)};
 
             for (int i = 0; i < map.length; i++) {
                 if (map[i] != -1) {
@@ -746,8 +743,8 @@ public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> ext
      */
     protected ImgPlus<T> overrideTimeDimension(final ImgPlus<T> ilastikImg, final ImgPlusValue<?> imgInValue) {
 
-        if (ilastikImg.dimensionIndex(Axes.CHANNEL) != -1) {
-            KNIPGateway.log().error("The ilastik output already has a Channel axis. Skipping override.");
+        if (ilastikImg.dimensionIndex(Axes.CHANNEL) != -1 || ilastikImg.numDimensions() == 2) {
+            KNIPGateway.log().error("The ilastik output already has a Channel axis or is 2 dimensional. Skipping override.");
             return ilastikImg;
         }
 
