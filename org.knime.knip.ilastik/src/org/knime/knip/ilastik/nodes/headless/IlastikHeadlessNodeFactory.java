@@ -62,6 +62,7 @@ import net.imglib2.type.numeric.RealType;
  * @author Andreas Graumann, University of Konstanz
  * @param <T>
  */
+@Deprecated
 public class IlastikHeadlessNodeFactory<T extends RealType<T> & NativeType<T>> extends NodeFactory<IlastikHeadlessNodeModel<T>> {
 
     /**

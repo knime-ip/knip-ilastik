@@ -5,27 +5,15 @@
          point="org.eclipse.ui.preferencePages">
       <page
             category="org.knime.knip.base.prefs.MainPreferencePage"
-            class="org.knime.knip.ilastik.nodes.IlastikPreferencePage"
-            id="org.knime.knip.ilastik.nodes.IlastikPreferencePage"
+            class="org.knime.knip.ilastik.preferences.IlastikPreferencePage"
+            id="org.knime.knip.ilastik.preferences.IlastikPreferencePage"
             name="Ilastik">
       </page>
    </extension>
    <extension
-         point="org.knime.workbench.repository.nodes">
-      <node
-      		category-path="/community/knip/ilastik"
-            factory-class="org.knime.knip.ilastik.nodes.headless.IlastikHeadlessNodeFactory"
-            id="org.knime.knip.ilastik.nodes.headless.IlastikHeadlessNodeFactory">
-      </node>
-   </extension>
-   <extension
-         point="org.knime.workbench.repository.categories">
-      <category
-            icon="icons/ilastik-icon.ico"
-            level-id="ilastik"
-            locked="true"
-            name="Ilastik"
-            path="/community/knip">
-      </category>
+         point="org.eclipse.core.runtime.preferences">
+      <initializer
+            class="org.knime.knip.ilastik.preferences.PreferenceInitializer">
+      </initializer>
    </extension>
 </plugin>

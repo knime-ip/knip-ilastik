@@ -99,7 +99,8 @@ import org.knime.knip.base.data.img.ImgPlusCellFactory;
 import org.knime.knip.base.data.img.ImgPlusValue;
 import org.knime.knip.base.node.NodeUtils;
 import org.knime.knip.core.KNIPGateway;
-import org.knime.knip.ilastik.nodes.IlastikPreferencePage;
+import org.knime.knip.ilastik.preferences.IlastikPreferenceConstants;
+import org.knime.knip.ilastik.preferences.IlastikPreferencesPlugin;
 import org.knime.knip.io.ScifioImgSource;
 import org.knime.knip.io.nodes.imgwriter2.ImgWriter2;
 import org.scijava.log.DefaultUncaughtExceptionHandler;
@@ -125,6 +126,7 @@ import net.imglib2.view.Views;
  * @author Andreas Graumann, University of Konstanz
  * @param <T>
  */
+@Deprecated
 public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> extends NodeModel
         implements BufferedDataTableHolder {
 
@@ -446,7 +448,12 @@ public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> ext
             throws IOException, InterruptedException {
 
         // get path of ilastik
-        final String path = IlastikPreferencePage.getPath();
+        final String path =
+                IlastikPreferencesPlugin.getDefault().getPreferenceStore().getString(IlastikPreferenceConstants.P_PATH);
+
+        if (!new File(path).exists()) {
+            throw new IllegalArgumentException("The Path to ilastik points to a non-existing file");
+        }
 
         String outpath;
         try {

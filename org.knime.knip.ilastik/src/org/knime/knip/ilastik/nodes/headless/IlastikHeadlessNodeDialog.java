@@ -64,6 +64,7 @@ import org.knime.knip.ilastik.nodes.headless.IlastikHeadlessNodeModel.ColCreatio
  *
  * @author Andreas Graumann, University of Konstanz
  */
+@Deprecated
 public class IlastikHeadlessNodeDialog extends DefaultNodeSettingsPane {
 
     /**

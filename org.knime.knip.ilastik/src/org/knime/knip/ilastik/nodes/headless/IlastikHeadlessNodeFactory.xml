@@ -1,5 +1,5 @@
 <!DOCTYPE knimeNode PUBLIC "-//UNIKN//DTD KNIME Node 2.0//EN" "http://www.knime.org/Node.dtd">
-<knimeNode icon="ilastik.png" type="Manipulator">
+<knimeNode icon="ilastik.png" type="Manipulator" deprecated="true">
 	<name>Ilastik Headless (Pixel classification)</name>
 	<shortDescription>
 		Headless execution of a pixel classification ilastik project.

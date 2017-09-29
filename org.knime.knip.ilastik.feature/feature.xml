@@ -2,7 +2,7 @@
 <feature
       id="org.knime.knip.ilastik.feature"
       label="KNIME Image Processing - Ilastik Integration"
-      version="0.3.1.qualifier"
+      version="0.4.0.qualifier"
       provider-name="University of Konstanz / University of Heidelberg">
 
    <description>
@@ -727,10 +727,36 @@ license terms applicable to such Node, including when such Node is
 propagated with or for interoperation with KNIME.
    </license>
 
+   <requires>
+      <import plugin="org.knime.base" version="3.0.0" match="compatible"/>
+      <import plugin="org.knime.knip.base" version="1.5.0" match="compatible"/>
+      <import plugin="org.eclipse.ui" version="3.107.0" match="greaterOrEqual"/>
+      <import plugin="imagej-common" version="0.18.0" match="greaterOrEqual"/>
+      <import plugin="imglib2" version="4.2.1" match="greaterOrEqual"/>
+      <import plugin="org.knime.knip.io" version="1.5.0" match="compatible"/>
+      <import plugin="scijava-cache" version="0.1.0" match="greaterOrEqual"/>
+      <import plugin="scifio" version="0.25.0" match="greaterOrEqual"/>
+      <import plugin="org.knime.knip.core" version="1.5.0" match="compatible"/>
+      <import plugin="scijava-common" version="2.47.0" match="greaterOrEqual"/>
+      <import plugin="ilastik4ij" version="1.0.2" match="greaterOrEqual"/>
+      <import plugin="org.knime.knip.imagej2.core" version="0.11.4" match="greaterOrEqual"/>
+      <import plugin="imglib2-ij" version="2.0.37" match="greaterOrEqual"/>
+      <import plugin="imagej-common" version="0.24.4" match="greaterOrEqual"/>
+      <import plugin="ij" version="1.51.0" match="greaterOrEqual"/>
+      <import plugin="scijava-common" version="2.64.0" match="greaterOrEqual"/>
+   </requires>
+
    <plugin
          id="org.knime.knip.ilastik"
          download-size="0"
          install-size="0"
          version="0.0.0"/>
+
+   <plugin
+         id="ilastik4ij"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
 
 </feature>
