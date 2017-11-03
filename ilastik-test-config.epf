@@ -1,4 +1,5 @@
 @org.knime.knip.ilastik=0.1.0.qualifier
 \!/=
 file_export_version=3.0
-/instance/org.knime.knip.ilastik.nodes/path=/opt/ilastik-1.1.7-Linux/run_ilastik.sh
+/instance/org.knime.knip.ilastik/pathPreference=/opt/ilastik-1.1.7-Linux/run_ilastik.sh
+
