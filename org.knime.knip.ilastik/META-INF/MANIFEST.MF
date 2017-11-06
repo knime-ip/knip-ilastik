@@ -21,7 +21,8 @@ Require-Bundle: org.knime.base;bundle-version="[3.0.0,4.0.0)",
  org.knime.knip.imagej2.core,
  org.knime.workbench.repository;bundle-version="3.0.0",
  org.apache.log4j;bundle-version="1.2.15",
- ilastik4ij;bundle-version="1.0.3"
+ ilastik4ij;bundle-version="1.0.3",
+ imglib2-ij;bundle-version="2.0.38"
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
 Eclipse-RegisterBuddy: org.knime.core, org.knime.knip.imagej2.core
