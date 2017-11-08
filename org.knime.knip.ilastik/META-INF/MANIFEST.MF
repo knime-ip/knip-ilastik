@@ -15,14 +15,14 @@ Require-Bundle: org.knime.base;bundle-version="[3.0.0,4.0.0)",
  imglib2;bundle-version="4.2.1",
  org.knime.knip.io;bundle-version="[1.5.0,2.0.0)",
  scijava-cache;bundle-version="0.1.2",
- scifio;bundle-version="0.33.0",
+ scifio,
  org.knime.knip.core;bundle-version="[1.5.0,2.0.0)",
  scijava-common;bundle-version="2.65.0",
  org.knime.knip.imagej2.core;bundle-version="0.11.4",
  org.knime.workbench.repository;bundle-version="3.0.0",
  org.apache.log4j;bundle-version="1.2.15",
  ilastik4ij;bundle-version="1.0.3",
- imglib2-ij;bundle-version="2.0.38"
+ imglib2-ij
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
 Eclipse-RegisterBuddy: org.knime.core, org.knime.knip.imagej2.core
