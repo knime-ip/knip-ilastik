@@ -77,7 +77,7 @@ public class IlastikPreferencePage extends FieldEditorPreferencePage implements 
             ilastikOptions.setNumThreads(preferenceStore.getInt(IlastikPreferenceConstants.P_THREADS));
 
             if (!new File(ilastikOptions.getExecutableFilePath()).exists()) {
-                this.setErrorMessage("Selected file is no valid ilastik executable");
+                this.setErrorMessage("Selected file is not a valid ilastik executable");
             }
 
             return ilastikOptions.isConfigured();
