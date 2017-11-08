@@ -12,7 +12,7 @@ Detailed information is available on  the [KNIME Website](https://tech.knime.org
 You can install the KNIME Ilastik Integration from the nightly or stable community contributions update-site.
 For instructions on how to add them to KNIME see the KNIME Community Contributions [page](https://tech.knime.org/community).
 
-After installation In KNIME: Go to ``File -> Preferences -> KNIME -> Ilastik`` and enter the path of your Ilastik installation.
+After installation In KNIME: Go to ``File -> Preferences -> KNIME -> Image Processing Plugin -> Ilastik`` and enter the path to the  Ilastik executable.
 
 ### Support
 This extension is supported on the KNIME Image Processing section of the [KNIME forums](https://tech.knime.org/forum/knime-image-processing).
