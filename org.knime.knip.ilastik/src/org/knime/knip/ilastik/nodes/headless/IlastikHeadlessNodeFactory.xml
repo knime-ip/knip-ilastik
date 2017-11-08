@@ -1,21 +1,21 @@
 <!DOCTYPE knimeNode PUBLIC "-//UNIKN//DTD KNIME Node 2.0//EN" "http://www.knime.org/Node.dtd">
-<knimeNode icon="ilastik.png" type="Manipulator" deprecated="true">
+<knimeNode icon="ilastik.png" type="Manipulator">
 	<name>Ilastik Headless (Pixel classification)</name>
 	<shortDescription>
 		Headless execution of a pixel classification ilastik project.
 	</shortDescription>
 	<fullDescription>
 		<intro>
-			This node executes <a href="http://www.ilastik.org">Ilastik</a> and 
-			process the given input images headless using a provided 
+			This node executes <a href="http://www.ilastik.org">Ilastik</a> and
+			process the given input images headless using a provided
 			Ilastik pixel classification project file.
-			
-			Input images MUST have the sime dimension as in the learned Ilastik 
-			project, otherwise an Ilastik error may occur. 
-			Resulting images will have one channel for each class defined in 
+
+			Input images MUST have the sime dimension as in the learned Ilastik
+			project, otherwise an Ilastik error may occur.
+			Resulting images will have one channel for each class defined in
 			ilastik representing the probability for each pixel to be part of the corresponding class (0-1).
-			
-			Please make sure the right path to the Ilastik installation is 
+
+			Please make sure the right path to the Ilastik installation is
 			given in "Preferences -> KNIME -> Image Processing Plugin -> Ilastik -> Path to Ilastik installation".
 		</intro>
 		<option name="Path to Ilastik project file">The ilastik project to be executed.</option>

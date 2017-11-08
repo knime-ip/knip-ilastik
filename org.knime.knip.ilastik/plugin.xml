@@ -16,4 +16,22 @@
             class="org.knime.knip.ilastik.preferences.PreferenceInitializer">
       </initializer>
    </extension>
+   <extension
+           point="org.knime.workbench.repository.nodes">
+      <node
+            category-path="/community/knip/ilastik"
+            factory-class="org.knime.knip.ilastik.nodes.headless.IlastikHeadlessNodeFactory"
+            id="org.knime.knip.ilastik.nodes.headless.IlastikHeadlessNodeFactory">
+      </node>
+   </extension>
+   <extension
+         point="org.knime.workbench.repository.categories">
+      <category
+            icon="icons/ilastik-icon.ico"
+            level-id="ilastik"
+            locked="true"
+            name="Ilastik"
+            path="/community/knip">
+      </category>
+      </extension>
 </plugin>
