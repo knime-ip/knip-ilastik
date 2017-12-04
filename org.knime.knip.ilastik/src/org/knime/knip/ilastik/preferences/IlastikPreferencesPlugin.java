@@ -19,16 +19,16 @@ public class IlastikPreferencesPlugin extends AbstractUIPlugin {
         return instance;
     }
 
-    public IlastikPreferencesPlugin() {
+    // init the ilastik options
+    void initOptionsService() {
         OptionsService optionsService = IJGateway.getImageJContext().getService(OptionsService.class);
         if (optionsService == null) {
-            throw new IllegalStateException("Can not load options service");
+            throw new IllegalStateException("Could not load options service");
         }
 
         final IlastikOptions ilastikOptions = optionsService.getOptions(IlastikOptions.class);
-
         if (ilastikOptions == null) {
-            throw new IllegalStateException("Can not load IlastikOptions service");
+            throw new IllegalStateException("Could not load IlastikOptions service");
         }
 
         final IPreferenceStore preferenceStore = getPreferenceStore();
