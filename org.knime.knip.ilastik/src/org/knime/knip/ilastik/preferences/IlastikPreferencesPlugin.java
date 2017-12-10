@@ -6,6 +6,7 @@ import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.ilastik.ilastik4ij.IlastikOptions;
 import org.knime.knip.imagej2.core.IJGateway;
+import org.osgi.framework.BundleContext;
 import org.scijava.options.OptionsService;
 
 /**
@@ -17,6 +18,15 @@ public class IlastikPreferencesPlugin extends AbstractUIPlugin {
 
     public static IlastikPreferencesPlugin getDefault() {
         return instance;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void start(final BundleContext context) throws Exception {
+        super.start(context);
+        initOptionsService();
     }
 
     // init the ilastik options

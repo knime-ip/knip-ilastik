@@ -15,6 +15,6 @@ public class PreferenceInitializer extends AbstractPreferenceInitializer {
                 store.setDefault(IlastikPreferenceConstants.P_RAM, 512);
                 store.setDefault(IlastikPreferenceConstants.P_PATH, "");
 
-                IlastikPreferencesPlugin.getDefault().initOptionsService();
+//                IlastikPreferencesPlugin.getDefault().initOptionsService();
         }
 }

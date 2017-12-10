@@ -4,9 +4,10 @@ Bundle-Name: KNIME Ilastik Integration Plugin
 Bundle-SymbolicName: org.knime.knip.ilastik;singleton:=true
 Bundle-Version: 0.4.1.qualifier
 Bundle-ClassPath: knipilastik.jar,
- lib/cisd-jhdf5-batteries_included_lin_win_mac.jar,
  lib/javax.json-api-1.0.jar,
- lib/javax.json-1.0.3.jar
+ lib/javax.json-1.0.3.jar,
+ lib/ilastik4ij-1.0.4-SNAPSHOT.jar,
+ lib/sis-jhdf5-batteries_included.jar
 Bundle-Vendor: Andreas Graumann, Chair for Bioinformatics and Information Mining, Univesity of Konstanz
 Require-Bundle: org.knime.base;bundle-version="[3.0.0,4.0.0)",
  org.knime.knip.base;bundle-version="[1.5.0,2.0.0)",
@@ -21,7 +22,6 @@ Require-Bundle: org.knime.base;bundle-version="[3.0.0,4.0.0)",
  org.knime.knip.imagej2.core;bundle-version="0.11.4",
  org.knime.workbench.repository;bundle-version="3.0.0",
  org.apache.log4j;bundle-version="1.2.15",
- ilastik4ij;bundle-version="1.0.3",
  imglib2-ij
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
