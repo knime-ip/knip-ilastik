@@ -2,7 +2,7 @@
 <feature
       id="org.knime.knip.ilastik.update"
       label="KNIME Image Processing - Ilastik Integration"
-      version="0.3.0.qualifier"
+      version="0.3.6.qualifier"
       provider-name="University of Konstanz / University of Heidelberg">
 
    <includes
