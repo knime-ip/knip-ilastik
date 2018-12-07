@@ -463,7 +463,7 @@ public class IlastikHeadlessNodeModel<T extends RealType<T> & NativeType<T>> ext
         inFiles.add(0, path);
         inFiles.add(1, "--headless");
         inFiles.add(2, "--project=".concat(outpath));
-        inFiles.add(3, "--output_format=multipage tiff");
+        inFiles.add(3, "--output_format=\"multipage tiff\"");
         inFiles.add(4, "--output_filename_format=".concat(tmpDirPath).concat("{nickname}" + RESULT_IMG_SUFFIX));
 
         KNIPGateway.log().debug("Executing ilastik with " + String.join(", ", inFiles));
