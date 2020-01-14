@@ -53,6 +53,7 @@ import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.jface.preference.FileFieldEditor;
+import org.eclipse.jface.preference.IntegerFieldEditor;
 import org.eclipse.jface.preference.PreferencePage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.ScrolledComposite;
@@ -81,11 +82,19 @@ public class IlastikPreferencePage extends PreferencePage
 
     private static final String DEFAULT_PATH = doAutoGuessCellProfilerPath();
 
+    private static final int DEFAULT_NUM_THREADS = -1;
+
+    private static final int DEFAULT_MAX_RAM_MB = 4096;
+
     private ScrolledComposite m_sc;
 
     private Composite m_container;
 
     private FileFieldEditor m_fileEditor;
+
+    private IntegerFieldEditor m_numThreadsEditor;
+
+    private IntegerFieldEditor m_maxRamMbEditor;
 
     private static final NodeLogger LOGGER =
             NodeLogger.getLogger(IlastikPreferencePage.class);
@@ -105,16 +114,33 @@ public class IlastikPreferencePage extends PreferencePage
     protected Control createContents(final Composite parent) {
         m_sc = new ScrolledComposite(parent, SWT.H_SCROLL | SWT.V_SCROLL);
         m_container = new Composite(m_sc, SWT.NONE);
+        m_container.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
         m_container.setLayout(new GridLayout());
+
+        Composite fileEditorContainer = new Composite(m_container, SWT.NONE);
+        fileEditorContainer.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+        fileEditorContainer.setLayout(new GridLayout());
         m_fileEditor = new FileFieldEditor(PLUGIN_PATH,
-                "Path to Ilastik Installation", m_container);
+                "Path to ilastik Installation", fileEditorContainer);
         m_fileEditor.setStringValue(Platform.getPreferencesService().getString(
-                PLUGIN_PATH, "path", DEFAULT_PATH, null));
-        GridData gridData = new GridData();
-        gridData.horizontalSpan = 3;
-        gridData = new GridData();
-        gridData.horizontalSpan = 3;
-        gridData.verticalIndent = 20;
+                PLUGIN_PATH, "executableFile", DEFAULT_PATH, null));
+
+        Composite numThreadsEditorContainer = new Composite(m_container, SWT.NONE);
+        numThreadsEditorContainer.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+        numThreadsEditorContainer.setLayout(new GridLayout());
+        m_numThreadsEditor = new IntegerFieldEditor(PLUGIN_PATH,
+                "Number of Threads ilastik is allowed to use.\nNegative numbers means no restriction", numThreadsEditorContainer);
+        m_numThreadsEditor.setStringValue(Integer.toString(Platform.getPreferencesService()
+                .getInt(PLUGIN_PATH, "numThreads", DEFAULT_NUM_THREADS, null)));
+
+        Composite maxRamMbEditorContainer = new Composite(m_container, SWT.NONE);
+        maxRamMbEditorContainer.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+        maxRamMbEditorContainer.setLayout(new GridLayout());
+        m_maxRamMbEditor = new IntegerFieldEditor(PLUGIN_PATH,
+                "Maximum amount of RAM (in MB) that ilastik is allowed to use.", maxRamMbEditorContainer);
+        m_maxRamMbEditor.setStringValue(Integer
+                .toString(Platform.getPreferencesService().getInt(PLUGIN_PATH, "maxRamMb", DEFAULT_MAX_RAM_MB, null)));
+
         m_sc.setContent(m_container);
         m_sc.setExpandHorizontal(true);
         m_sc.setExpandVertical(true);
@@ -153,6 +179,8 @@ public class IlastikPreferencePage extends PreferencePage
     @Override
     protected void performApply() {
         setPath(m_fileEditor.getStringValue());
+        setNumThreads(m_numThreadsEditor.getIntValue());
+        setMaxRamMb(m_maxRamMbEditor.getIntValue());
     }
 
     /**
@@ -164,7 +192,41 @@ public class IlastikPreferencePage extends PreferencePage
     private void setPath(final String path) {
         IEclipsePreferences prefs =
                 InstanceScope.INSTANCE.getNode(PLUGIN_PATH);
-        prefs.put("path", path);
+        prefs.put("executableFile", path);
+        try {
+            prefs.flush();
+        } catch (BackingStoreException e) {
+            LOGGER.error("Could not save preferences: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Saves the number of threads.
+     *
+     * @param numThreads
+     *                  The maximum number of threads ilastik is allowed to use
+     */
+    private void setNumThreads(final int numThreads) {
+        IEclipsePreferences prefs =
+                InstanceScope.INSTANCE.getNode(PLUGIN_PATH);
+        prefs.putInt("numThreads", numThreads);
+        try {
+            prefs.flush();
+        } catch (BackingStoreException e) {
+            LOGGER.error("Could not save preferences: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Saves the maximum RAM.
+     *
+     * @param maxRamMb
+     *                Saves the maximum RAM ilastik is allowed to use
+     */
+    private void setMaxRamMb(final int maxRamMb) {
+        IEclipsePreferences prefs =
+                InstanceScope.INSTANCE.getNode(PLUGIN_PATH);
+        prefs.putInt("maxRamMb", maxRamMb);
         try {
             prefs.flush();
         } catch (BackingStoreException e) {
@@ -176,10 +238,11 @@ public class IlastikPreferencePage extends PreferencePage
      *
      * @return Path of Ilastik installation
      */
+    @Deprecated
     public static String getPath() {
 
         final String path = Platform.getPreferencesService().getString(
-                PLUGIN_PATH, "path", DEFAULT_PATH, null);
+                PLUGIN_PATH, "executableFile", DEFAULT_PATH, null);
 
         final String os = getOS();
         String macExtension = "";
