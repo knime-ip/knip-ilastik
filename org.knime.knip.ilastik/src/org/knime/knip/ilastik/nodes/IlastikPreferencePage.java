@@ -68,9 +68,10 @@ import org.osgi.service.prefs.BackingStoreException;
 
 /**
  *
- * Preference page for configurations. Path of ilastik installation.
+ * Preference page for global configuration of ilastik integration.
  *
  * @author Andreas Graumann, University of Konstanz
+ * @author Stefan Helfrich, KNIME GmbH
  */
 public class IlastikPreferencePage extends PreferencePage
         implements IWorkbenchPreferencePage {
