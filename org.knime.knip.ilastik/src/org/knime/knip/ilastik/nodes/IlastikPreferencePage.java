@@ -81,7 +81,7 @@ public class IlastikPreferencePage extends PreferencePage
      */
     private static final String PLUGIN_PATH = "org.ilastik.ilastik4ij.ui.IlastikOptions";
 
-    private static final String DEFAULT_PATH = doAutoGuessCellProfilerPath();
+    private static final String DEFAULT_PATH = guessExecutableFilePath();
 
     private static final int DEFAULT_NUM_THREADS = -1;
 
@@ -161,7 +161,7 @@ public class IlastikPreferencePage extends PreferencePage
         return System.getProperty("os.name", "generic").toLowerCase();
     }
 
-    private static String doAutoGuessCellProfilerPath() {
+    private static String guessExecutableFilePath() {
         final String os = getOS();
         if ((os.indexOf("mac") >= 0) || (os.indexOf("darwin") >= 0)) {
             return "/Applications/ilastik-1.3.3-OSX.app/Contents/MacOS/ilastik";
