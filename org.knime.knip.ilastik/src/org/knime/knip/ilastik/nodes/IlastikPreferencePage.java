@@ -163,11 +163,11 @@ public class IlastikPreferencePage extends PreferencePage
     private static String doAutoGuessCellProfilerPath() {
         final String os = getOS();
         if ((os.indexOf("mac") >= 0) || (os.indexOf("darwin") >= 0)) {
-            return "/Applications/ilastik-1.1.8-OSX.app";
+            return "/Applications/ilastik-1.3.3-OSX.app/Contents/MacOS/ilastik";
         } else if (os.indexOf("win") >= 0) {
-            return "C:\\Program Files\\ilastik-1.1.8-win64.exe";
+            return "C:\\Program Files\\ilastik\\ilastik.exe";
         } else if (os.indexOf("nux") >= 0) {
-            return "/usr/bin/ilastik-1.1.8-Linux/runIlastik.sh";
+            return "/opt/ilastik/run_ilastik.sh";
         } else {
             return "";
         }
