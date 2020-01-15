@@ -78,7 +78,7 @@ public class IlastikPreferencePage extends PreferencePage
     /**
      *
      */
-    private static final String PLUGIN_PATH = "org.knime.knip.ilastik.nodes";
+    private static final String PLUGIN_PATH = "org.ilastik.ilastik4ij.ui.IlastikOptions";
 
     private static final String DEFAULT_PATH = doAutoGuessCellProfilerPath();
 
@@ -112,6 +112,15 @@ public class IlastikPreferencePage extends PreferencePage
      */
     @Override
     protected Control createContents(final Composite parent) {
+        String legacyPath =
+                Platform.getPreferencesService().getString("org.knime.knip.ilastik.nodes", "path", "null", null);
+        String executableFilePath =
+                Platform.getPreferencesService().getString(PLUGIN_PATH, "executableFile", "null", null);
+        if (!legacyPath.equals("null") && executableFilePath.equals("null")) {
+            // Path was set with a prior version of this preference page
+            setPath(legacyPath);
+        }
+
         m_sc = new ScrolledComposite(parent, SWT.H_SCROLL | SWT.V_SCROLL);
         m_container = new Composite(m_sc, SWT.NONE);
         m_container.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
